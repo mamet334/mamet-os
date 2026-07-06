@@ -2,11 +2,6 @@
 MAMET OS - Evidence Collector
 ===============================
 Mengumpulkan bukti dari berbagai sumber berdasarkan rencana.
-
-Filosofi:
-- Modular: setiap sumber adalah Lego
-- Bertingkat: cek cache dulu, baru sumber lain
-- Confidence score: setiap evidence punya tingkat kepercayaan
 """
 
 class EvidenceCollector:
@@ -20,9 +15,10 @@ class EvidenceCollector:
         """Daftarkan sumber evidence default."""
         self.sources = {
             "cache": {"priority": 1, "enabled": True},
-            "user_memory": {"priority": 2, "enabled": False},  # Belum diimplementasi
-            "rag": {"priority": 3, "enabled": False},  # Belum diimplementasi
-            "web": {"priority": 4, "enabled": False},  # Belum diimplementasi
+            "user_memory": {"priority": 2, "enabled": False},
+            "rag": {"priority": 3, "enabled": False},
+            "web": {"priority": 4, "enabled": False},
+            "engineer": {"priority": 3, "enabled": True}
         }
     
     async def initialize(self):
@@ -37,18 +33,6 @@ class EvidenceCollector:
         plan: dict,
         api_key: str = None
     ) -> dict:
-        """
-        Kumpulkan evidence sesuai rencana.
-        
-        Args:
-            user_id: Email user
-            column: Kolom chat
-            plan: Rencana dari Planning Engine
-            api_key: OpenRouter API key (opsional)
-            
-        Returns:
-            Dict berisi evidence yang dikumpulkan
-        """
         evidence = {
             "items": [],
             "sources": [],
@@ -57,9 +41,11 @@ class EvidenceCollector:
         }
         
         steps = plan.get("steps", [])
+        print(f"  [COLLECTOR] Steps: {steps}")
         
-        # Eksekusi setiap langkah pengumpulan
         for step in steps:
+            print(f"  [COLLECTOR] Executing step: {step}")
+            
             if step == "check_cache":
                 result = await self._check_cache(user_id, plan)
                 if result:
@@ -80,8 +66,26 @@ class EvidenceCollector:
                     evidence["items"].append(result)
                     evidence["sources"].append("rag")
                     evidence["confidence"] = max(evidence["confidence"], 0.8)
+            
+            elif step == "check_rag_knowledge":
+                print("  [COLLECTOR] Memanggil Engineer...")
+                result = await self._check_engineer(user_id, plan, api_key)
+                print(f"  [COLLECTOR] Engineer result: {result}")
+                if result:
+                    evidence["items"].append(result)
+                    evidence["sources"].append("engineer")
+                    evidence["confidence"] = max(evidence["confidence"], result.get("confidence", 0.8))
         
-        # Jika tidak ada evidence, beri response default
+        # Fallback untuk kolom3: panggil Engineer langsung jika tidak ada evidence
+        if column == "kolom3" and not evidence["items"]:
+            print("  [COLLECTOR] Fallback: memanggil Engineer langsung untuk kolom3")
+            result = await self._check_engineer(user_id, plan, api_key)
+            print(f"  [COLLECTOR] Fallback Engineer result: {result}")
+            if result:
+                evidence["items"].append(result)
+                evidence["sources"].append("engineer")
+                evidence["confidence"] = result.get("confidence", 0.8)
+        
         if not evidence["items"]:
             evidence["direct_answer"] = self._get_fallback_response(column)
             evidence["confidence"] = 0.1
@@ -89,22 +93,41 @@ class EvidenceCollector:
         return evidence
     
     async def _check_cache(self, user_id: str, plan: dict) -> dict:
-        """Cek cache untuk respons yang sama."""
-        # Placeholder - belum diimplementasi
         return None
     
     async def _check_user_memory(self, user_id: str, plan: dict) -> dict:
-        """Cek User Memory."""
-        # Placeholder - belum diimplementasi
         return None
     
     async def _check_rag(self, user_id: str, plan: dict, api_key: str = None) -> dict:
-        """Cek RAG untuk pencarian."""
-        # Placeholder - belum diimplementasi
         return None
     
+    async def _check_engineer(self, user_id: str, plan: dict, api_key: str = None) -> dict:
+        """Cek Engineer untuk analisis dan tindakan."""
+        print("  [ENGINEER] Mulai memproses...")
+        try:
+            from engineer.engineer_main import Engineer
+            engineer = Engineer()
+            result = await engineer.process(
+                message=plan.get("original_message", ""),
+                user_id=user_id
+            )
+            print(f"  [ENGINEER] Sukses: {result}")
+            return {
+                "source": "engineer",
+                "data": result,
+                "confidence": 0.9
+            }
+        except Exception as e:
+            print(f"  [ENGINEER] ERROR: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return {
+                "source": "engineer",
+                "data": {"error": str(e)},
+                "confidence": 0.1
+            }
+    
     def _get_fallback_response(self, column: str) -> str:
-        """Response default saat tidak ada evidence."""
         fallbacks = {
             "kolom1": "Maaf, saya belum menemukan hasil pencarian. Fitur RAG akan segera tersedia.",
             "kolom2": "Halo! Saya Asisten Pribadi MAMET OS. Fitur saya masih dalam pengembangan.",

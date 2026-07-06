@@ -2,11 +2,6 @@
 MAMET OS - Decision Engine
 ============================
 Mengambil keputusan secara SIMBOLIK berdasarkan evidence.
-
-Filosofi:
-- Pohon keputusan (decision tree), bukan LLM
-- Deterministik dan dapat di-debug
-- Confidence threshold menentukan tindakan
 """
 
 class DecisionEngine:
@@ -14,14 +9,13 @@ class DecisionEngine:
     
     def __init__(self):
         self.thresholds = {
-            "direct_reply": 0.8,  # Confidence > 0.8 → jawab langsung
-            "need_llm": 0.5,      # Confidence 0.5-0.8 → butuh LLM
-            "need_agent": 0.3,    # Confidence 0.3-0.5 → butuh agen
-            "ask_clarify": 0.1    # Confidence < 0.1 → minta klarifikasi
+            "direct_reply": 0.8,
+            "need_llm": 0.5,
+            "need_agent": 0.3,
+            "ask_clarify": 0.1
         }
     
     async def initialize(self):
-        """Inisialisasi decision engine."""
         print(f"  [DECISION] Thresholds: {self.thresholds}")
     
     async def decide(
@@ -32,19 +26,6 @@ class DecisionEngine:
         evidence: dict,
         api_key: str = None
     ) -> dict:
-        """
-        Putuskan tindakan selanjutnya.
-        
-        Args:
-            user_id: Email user
-            column: Kolom chat
-            plan: Rencana
-            evidence: Evidence yang dikumpulkan
-            api_key: OpenRouter API key
-            
-        Returns:
-            Dict berisi keputusan
-        """
         confidence = evidence.get("confidence", 0)
         intent = plan.get("intent", "chat")
         
@@ -57,11 +38,28 @@ class DecisionEngine:
         }
         
         # -----------------------------------------------------------------
-        # KOLOM 3 (Engineer) - SELALU butuh persetujuan
+        # KOLOM 3 (Engineer) - SELALU butuh persetujuan untuk perubahan
         # -----------------------------------------------------------------
         if column == "kolom3":
-            # Engineer selalu minta persetujuan untuk perubahan
-            if intent == "command":
+            engineer_data = None
+            for item in evidence.get("items", []):
+                if item.get("source") == "engineer":
+                    engineer_data = item.get("data", {})
+                    break
+            
+            if engineer_data:
+                action = engineer_data.get("action", "direct_reply")
+                
+                if action == "need_approval":
+                    decision["action"] = "need_approval"
+                    decision["message"] = engineer_data.get("response", "Membutuhkan persetujuan Anda.")
+                    decision["approval_details"] = engineer_data.get("approval_details", {})
+                    decision["actions_taken"] = ["engineer_analyzed", "needs_approval"]
+                else:
+                    decision["action"] = "direct_reply"
+                    decision["message"] = engineer_data.get("response", "")
+                    decision["actions_taken"] = ["engineer_responded"]
+            elif intent == "command":
                 decision["action"] = "need_approval"
                 decision["message"] = "Saya akan membuat perubahan berikut. Silakan tinjau dan setujui."
                 decision["approval_details"] = {
@@ -72,10 +70,11 @@ class DecisionEngine:
                 decision["actions_taken"] = ["analyzed_request", "prepared_plan"]
             else:
                 decision["action"] = "direct_reply"
+                decision["message"] = evidence.get("direct_answer", "Engineer MAMET OS siap membantu.")
                 decision["actions_taken"] = ["analyzed_request"]
         
         # -----------------------------------------------------------------
-        # KOLOM 1 (Pencarian Cepat) - RAG-focused
+        # KOLOM 1 (Pencarian Cepat)
         # -----------------------------------------------------------------
         elif column == "kolom1":
             if confidence > self.thresholds["direct_reply"]:
@@ -89,7 +88,7 @@ class DecisionEngine:
                 decision["actions_taken"] = ["no_results_found"]
         
         # -----------------------------------------------------------------
-        # KOLOM 2 (Asisten Pribadi) - Memori + Agen
+        # KOLOM 2 (Asisten Pribadi)
         # -----------------------------------------------------------------
         else:
             if confidence > self.thresholds["direct_reply"]:
@@ -100,7 +99,7 @@ class DecisionEngine:
                 decision["actions_taken"] = ["partial_match", "need_llm_generation"]
             elif confidence > self.thresholds["need_agent"]:
                 decision["action"] = "need_agent"
-                decision["agent"] = "web_search"  # Default agent
+                decision["agent"] = "web_search"
                 decision["actions_taken"] = ["no_local_knowledge", "escalating_to_agent"]
             else:
                 decision["action"] = "direct_reply"
