@@ -1,0 +1,13 @@
+SPESIFIKASI.md
+.env
+.env.local
+__pycache__/
+*.pyc
+venv/
+.env/
+node_modules/
+.next/
+out/
+.vercel/
+.vscode/
+.idea/
