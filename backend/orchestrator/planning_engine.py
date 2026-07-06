@@ -43,7 +43,7 @@ class PlanningEngine:
         
         Args:
             user_id: Email user
-            column: Kolom chat
+            column: Kolom chat ("kolom1", "kolom2", "kolom3")
             message: Pesan user
             
         Returns:

@@ -80,6 +80,8 @@ class MainOrchestrator:
             api_key=api_key
         )
         print(f"[KERNEL] Decision: {decision['action']}")
+        if "rag_results" in decision:
+            print(f"[KERNEL] RAG results: {len(decision['rag_results'])} items")
         
         response = await self._build_response(
             decision=decision,
@@ -96,52 +98,77 @@ class MainOrchestrator:
         evidence: Dict[str, Any],
         api_key: Optional[str] = None
     ) -> Dict[str, Any]:
-        action = decision.get("action", "error")
-        
-        if action == "direct_reply":
-            # Cek apakah ada respons dari Engineer
-            engineer_response = None
-            for item in evidence.get("items", []):
-                if item.get("source") == "engineer":
-                    engineer_response = item.get("data", {}).get("response")
+        try:
+            action = decision.get("action", "error")
             
-            return {
-                "response": engineer_response or decision.get("message") or evidence.get("direct_answer", "Saya tidak menemukan jawaban."),
-                "sources": evidence.get("sources", []),
-                "actions_taken": decision.get("actions_taken", []),
-                "requires_approval": False,
-                "approval_details": {}
-            }
+            if action == "direct_reply":
+                # Jika ada hasil RAG, format dengan baik
+                rag_results = decision.get("rag_results", [])
+                if rag_results:
+                    lines = ["📋 **Hasil Pencarian:**\n"]
+                    for i, r in enumerate(rag_results, 1):
+                        lines.append(f"{i}. **{r['source']}** (relevansi: {r['similarity']})")
+                        lines.append(f"   {r['text']}\n")
+                    rag_response = "\n".join(lines)
+                    return {
+                        "response": rag_response,
+                        "sources": evidence.get("sources", []),
+                        "actions_taken": decision.get("actions_taken", []),
+                        "requires_approval": False,
+                        "approval_details": {}
+                    }
+                
+                # Cek respons dari Engineer
+                engineer_response = None
+                for item in evidence.get("items", []):
+                    if item.get("source") == "engineer":
+                        engineer_response = item.get("data", {}).get("response")
+                
+                response_text = engineer_response or decision.get("message") or evidence.get("direct_answer", "Saya tidak menemukan jawaban.")
+                
+                return {
+                    "response": response_text,
+                    "sources": evidence.get("sources", []),
+                    "actions_taken": decision.get("actions_taken", []),
+                    "requires_approval": False,
+                    "approval_details": {}
+                }
+            
+            elif action == "need_llm":
+                return {
+                    "response": "[LLM] Fitur ini akan tersedia setelah integrasi OpenRouter.",
+                    "sources": evidence.get("sources", []),
+                    "actions_taken": decision.get("actions_taken", []),
+                    "requires_approval": False,
+                    "approval_details": {}
+                }
+            
+            elif action == "need_agent":
+                return {
+                    "response": f"[AGENT] Agen '{decision.get('agent')}' akan dipanggil.",
+                    "sources": evidence.get("sources", []),
+                    "actions_taken": decision.get("actions_taken", []),
+                    "requires_approval": False,
+                    "approval_details": {}
+                }
+            
+            elif action == "need_approval":
+                return {
+                    "response": decision.get("message", "Membutuhkan persetujuan Anda."),
+                    "sources": evidence.get("sources", []),
+                    "actions_taken": decision.get("actions_taken", []),
+                    "requires_approval": True,
+                    "approval_details": decision.get("approval_details", {})
+                }
+            
+            else:
+                return self._error_response("Tindakan tidak dikenali.")
         
-        elif action == "need_llm":
-            return {
-                "response": "[LLM] Fitur ini akan tersedia setelah integrasi OpenRouter.",
-                "sources": evidence.get("sources", []),
-                "actions_taken": decision.get("actions_taken", []),
-                "requires_approval": False,
-                "approval_details": {}
-            }
-        
-        elif action == "need_agent":
-            return {
-                "response": f"[AGENT] Agen '{decision.get('agent')}' akan dipanggil.",
-                "sources": evidence.get("sources", []),
-                "actions_taken": decision.get("actions_taken", []),
-                "requires_approval": False,
-                "approval_details": {}
-            }
-        
-        elif action == "need_approval":
-            return {
-                "response": decision.get("message", "Membutuhkan persetujuan Anda."),
-                "sources": evidence.get("sources", []),
-                "actions_taken": decision.get("actions_taken", []),
-                "requires_approval": True,
-                "approval_details": decision.get("approval_details", {})
-            }
-        
-        else:
-            return self._error_response("Tindakan tidak dikenali.")
+        except Exception as e:
+            print(f"[KERNEL] ERROR building response: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return self._error_response(f"Gagal membangun respons: {str(e)}")
     
     def _error_response(self, message: str) -> Dict[str, Any]:
         return {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 
 function ChatColumn({
   columnId,
@@ -14,6 +14,7 @@ function ChatColumn({
   const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const handleSend = async () => {
     if (!input.trim() || loading) return;
@@ -40,12 +41,55 @@ function ChatColumn({
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        const sysMsg = {
+          role: "system",
+          content: `✅ Dokumen "${file.name}" berhasil diunggah. (${data.chunks} chunk, ${data.char_count} karakter)`,
+        };
+        setMessages((prev) => [...prev, sysMsg]);
+      } else {
+        setMessages((prev) => [...prev, { role: "system", content: `❌ ${data.message || "Gagal mengunggah"}` }]);
+      }
+    } catch {
+      setMessages((prev) => [...prev, { role: "system", content: "❌ Gagal mengunggah dokumen" }]);
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#0d0d0d]">
-      <div className="px-4 py-3 border-b border-[#222] bg-[#111]">
+      <div className="px-4 py-3 border-b border-[#222] bg-[#111] flex items-center justify-between">
         <h2 className="text-sm font-semibold text-gray-200">
           {icon} {label}
         </h2>
+        {columnId === "kolom1" && (
+          <label className={`cursor-pointer text-xs px-2 py-1 rounded text-white ${uploading ? 'bg-gray-500' : 'bg-blue-600 hover:bg-blue-700'}`}>
+            {uploading ? "⏳ Upload..." : "📎 Upload"}
+            <input
+              type="file"
+              className="hidden"
+              accept=".txt,.md,.pdf,.docx,.csv,.json"
+              onChange={handleFileUpload}
+              disabled={uploading}
+            />
+          </label>
+        )}
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 && (
@@ -75,7 +119,7 @@ function ChatColumn({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder={`Ketik di ${label}...`}
-            className="flex-1 bg-white border border-gray-300 rounded px-3 py-2 text-sm text-black placeholder-gray-500 focus:outline-none focus:border-blue-500"
+            className="flex-1 bg-[#2a2a2a] border border-[#555] rounded px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
           />
           <button
             onClick={handleSend}

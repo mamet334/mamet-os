@@ -29,3 +29,27 @@ dan proyek ini menggunakan [Semantic Versioning](https://semver.org/lang/id/).
 - Kolom 3 (Engineer Basic): ✅ Analisis, baca file, list direktori
 - UI 3 Kolom: ✅ Berfungsi, responsif
 - Engineer Write/Execute: ⬜ Perlu persetujuan user (fitur berikutnya)
+
+
+## [0.1.1] - 2026-07-06
+
+### Ditambahkan
+- RAG Engine dengan ChromaDB untuk pencarian dokumen
+- Document Chunker berbasis paragraf dengan overlap 50 kata
+- Embedding Engine via OpenRouter API (dengan fallback pencarian teks)
+- Endpoint `/upload` untuk unggah dokumen (PDF, DOCX, TXT, MD, CSV, JSON)
+- Tombol Upload di Kolom 1 (Pencarian Cepat)
+- Pencarian teks sederhana saat API key tidak tersedia
+- Integrasi RAG ke Evidence Collector dan Decision Engine
+- Dependensi: chromadb, PyMuPDF, python-docx, python-multipart
+
+### Diperbaiki
+- Bug 500 Internal Server Error saat menampilkan hasil RAG
+- Bug koneksi frontend-backend (ECONNREFUSED)
+- Bug python-multipart tidak terinstal
+- Bug `response` None pada `_build_response`
+
+### Status Pengembangan
+- Kolom 1 (Pencarian Cepat): ✅ Upload + pencarian berfungsi
+- Kolom 2 (Asisten Pribadi): ⚠️ Fallback (menunggu User Memory)
+- Kolom 3 (Engineer Basic): ✅ Analisis, baca file, list direktori

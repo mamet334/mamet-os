@@ -16,6 +16,7 @@ class DecisionEngine:
         }
     
     async def initialize(self):
+        """Inisialisasi decision engine."""
         print(f"  [DECISION] Thresholds: {self.thresholds}")
     
     async def decide(
@@ -26,6 +27,19 @@ class DecisionEngine:
         evidence: dict,
         api_key: str = None
     ) -> dict:
+        """
+        Putuskan tindakan selanjutnya.
+        
+        Args:
+            user_id: Email user
+            column: Kolom chat
+            plan: Rencana
+            evidence: Evidence yang dikumpulkan
+            api_key: OpenRouter API key
+            
+        Returns:
+            Dict berisi keputusan
+        """
         confidence = evidence.get("confidence", 0)
         intent = plan.get("intent", "chat")
         
@@ -74,21 +88,29 @@ class DecisionEngine:
                 decision["actions_taken"] = ["analyzed_request"]
         
         # -----------------------------------------------------------------
-        # KOLOM 1 (Pencarian Cepat)
+        # KOLOM 1 (Pencarian Cepat) - RAG-focused
         # -----------------------------------------------------------------
         elif column == "kolom1":
-            if confidence > self.thresholds["direct_reply"]:
+            # Cek apakah RAG memberikan hasil
+            rag_results = []
+            for item in evidence.get("items", []):
+                if item.get("source") == "rag":
+                    rag_results = item.get("results", [])
+                    break
+            
+            if rag_results:
                 decision["action"] = "direct_reply"
                 decision["actions_taken"] = ["searched_rag", "found_results"]
-            elif confidence > self.thresholds["need_llm"]:
-                decision["action"] = "need_llm"
-                decision["actions_taken"] = ["searched_rag", "need_better_answer"]
+                decision["rag_results"] = rag_results
+            elif confidence > self.thresholds["direct_reply"]:
+                decision["action"] = "direct_reply"
+                decision["actions_taken"] = ["found_in_cache"]
             else:
                 decision["action"] = "direct_reply"
                 decision["actions_taken"] = ["no_results_found"]
         
         # -----------------------------------------------------------------
-        # KOLOM 2 (Asisten Pribadi)
+        # KOLOM 2 (Asisten Pribadi) - Memori + Agen
         # -----------------------------------------------------------------
         else:
             if confidence > self.thresholds["direct_reply"]:
