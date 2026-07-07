@@ -6,6 +6,31 @@ Ini adalah bagian dari prinsip *Self-Evolving*, di mana setiap perubahan struktu
 
 ---
 
+## [v0.5.0] - 2026-07-07
+
+### 🚀 Integrasi Fase 3 (Sub-Agent & Database Detector)
+
+**1. Pemasangan Agent Selector (UI Svelte)**
+- **File Dimodifikasi**: `desktop/src/routes/+page.svelte`
+- Merealisasikan spesifikasi "Pemilihan Agen Manual" dengan menambahkan menu *dropdown* di antarmuka Kolom 2. Pengguna kini dapat memilih agen spesifik secara eksplisit: *Database Explorer*, *File Analysis*, *Web Search*, atau *Research*.
+- Meneruskan data agen yang dipilih (`selectedAgent`) ke dalam *payload* komunikasi ke *backend* via `POST /api/process`.
+
+**2. Penyesuaian Endpoint Komunikasi API**
+- **File Dimodifikasi**: `backend/main.py`
+- Menambahkan properti opsional `agent: Optional[str] = None` ke dalam *schema* `ChatRequest` FastAPI agar dapat menerima sinyal pemilihan agen dari antarmuka Svelte.
+
+**3. Injeksi Agen ke dalam Planning Engine**
+- **File Dimodifikasi**: `backend/orchestrator/main_orchestrator.py`
+- Memodifikasi siklus *Orchestrator* agar menangkap parameter `agent` dari UI.
+- *Orchestrator* kini secara otomatis menyuntikkan nama agen ke dalam memori perencana (`plan["sub_agent"] = agent`) dan menambahkan langkah prosedural `"invoke_sub_agent"` tanpa memaksa pengguna mengetik instruksi agen secara manual di kolom *chat*.
+
+**4. Audit Arsitektur (End-to-End Simulation)**
+- **Artefak**: `audit_report_phase3.md` & `test_phase3.py`
+- Melakukan verifikasi lintasan data (*git diff*) untuk membuktikan *state binding* (`bind:value={selectedAgent}`) dari UI Svelte benar-benar terhubung secara absolut ke interceptor parameter pada *Main Orchestrator*.
+- Mengeksekusi simulasi buta (tanpa UI) yang membuktikan bahwa `DatabaseDetector` dan `SchemaMapper` berfungsi penuh; sukses mengklasifikasikan file, mengiris 5 baris sampel data pertama, dan membungkusnya sebagai JSON di dalam *Prompt* yang dieksekusi oleh Agen.
+
+---
+
 ## [v0.4.7] - 2026-07-07
 
 ### 🔗 Integrasi UI Fase 2 (Command Center & Rollback)

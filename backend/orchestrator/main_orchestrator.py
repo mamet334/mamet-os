@@ -58,7 +58,8 @@ class MainOrchestrator:
         user_id: str,
         column: str,
         message: str,
-        api_key: Optional[str] = None
+        api_key: Optional[str] = None,
+        agent: Optional[str] = None
     ) -> Dict[str, Any]:
         start_time = time.time()
         
@@ -75,6 +76,11 @@ class MainOrchestrator:
             column=column,
             message=message
         )
+        if agent:
+            plan["sub_agent"] = agent
+            if "invoke_sub_agent" not in plan["steps"]:
+                plan["steps"].append("invoke_sub_agent")
+        
         print(f"[KERNEL] Plan: {plan['steps']}")
         
         evidence = await self.evidence_collector.collect(

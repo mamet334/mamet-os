@@ -34,6 +34,7 @@
 
   let uploading = $state(false);
   let apiKey = $state("");
+  let selectedAgent = $state<string | null>(null);
 
   // State untuk Dashboard (Fase 2)
   let showDashboard = $state(false);
@@ -66,7 +67,8 @@
           user_id: "default@mamet.os",
           column: columnId,
           message: textToSend,
-          api_key: apiKey || null
+          api_key: apiKey || null,
+          agent: columnId === "kolom2" ? selectedAgent : null
         }),
       });
       
@@ -236,6 +238,7 @@
               <p class="text-[10px] text-slate-500">{col.desc}</p>
             </div>
           </div>
+          
           {#if col.id === "kolom1"}
              <label class="cursor-pointer text-xs {uploading ? 'bg-slate-600' : 'bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400'} px-2 py-1.5 rounded transition-colors border border-indigo-500/20">
                {uploading ? '⏳ Upload...' : '📎 Upload'}
@@ -247,6 +250,19 @@
                  disabled={uploading}
                />
              </label>
+          {/if}
+
+          {#if col.id === "kolom2"}
+            <select 
+              bind:value={selectedAgent}
+              class="bg-[#1a1a1f] border border-white/10 rounded-lg text-xs text-white/70 px-2 py-1 outline-none focus:border-blue-500/50 transition-colors"
+            >
+              <option value={null}>Tanpa Agen</option>
+              <option value="database">Database Explorer</option>
+              <option value="file">File Analysis</option>
+              <option value="web">Web Search</option>
+              <option value="research">Research</option>
+            </select>
           {/if}
         </div>
 

@@ -369,7 +369,7 @@ Folder Proyek MametOS/
 
 | Aspek | Keputusan |
 |-------|-----------|
-| Platform | **Desktop app** via Tauri + Svelte 5 (web mode Next.js untuk development) |
+| Platform | **Desktop app** via Tauri + Svelte 5 |
 | Repository | GitHub |
 | Hosting (dev) | Vercel (auto-deploy dari GitHub) |
 | Database | SQLite + ChromaDB (lokal) |
@@ -383,7 +383,7 @@ Folder Proyek MametOS/
 | Komponen | Teknologi |
 |----------|-----------|
 | Backend | Python 3.11+, FastAPI, Uvicorn |
-| Frontend | Tauri + Svelte 5 + TailwindCSS + shadcn/ui (Next.js untuk development) |
+| Frontend | Tauri + Svelte 5 + TailwindCSS |
 | Database | SQLite + ChromaDB |
 | AI | OpenRouter, OpenAI, Grok, Gemini (via abstraction layer) |
 | Auth | Email + password (JWT), API key terenkripsi per user |
@@ -505,12 +505,12 @@ class LegoModule(ABC):
 - Kernel Orchestrator: ✅
 - RAG Engine + Upload: ✅
 - Engineer Basic (read-only): ✅
-- UI 3 Kolom (Next.js): ✅
-- User Memory: ⬜ (Fase 2 berikutnya)
-- Multi-Provider AI: ⬜ (Fase 2 berikutnya)
-- Dua Sandbox + Rollback: ⬜ (Fase 2 berikutnya)
-- Engineer Write/Execute: ⬜ (Fase 2 berikutnya)
-- Budget Dashboard: ⬜ (Fase 2 berikutnya)
+- UI 3 Kolom (Svelte 5 + Tauri): ✅
+- User Memory: ✅
+- Multi-Provider AI: ✅
+- Dua Sandbox + Rollback: ✅
+- Engineer Write/Execute: ✅
+- Budget Dashboard: ✅
 
 ---
 

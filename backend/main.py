@@ -26,6 +26,7 @@ class ChatRequest(BaseModel):
     column: str
     message: str
     api_key: Optional[str] = None
+    agent: Optional[str] = None
 
 @app.on_event("startup")
 async def startup_event():
@@ -45,7 +46,8 @@ async def process_chat(req: ChatRequest):
             user_id=req.user_id,
             column=req.column,
             message=req.message,
-            api_key=req.api_key
+            api_key=req.api_key,
+            agent=req.agent
         )
         return response
     except Exception as e:
