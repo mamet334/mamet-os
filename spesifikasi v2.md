@@ -447,14 +447,14 @@ class LegoModule(ABC):
 
 ### Fase 0: Fondasi + Engineer Basic ✅ (Selesai)
 ### Fase 1: Kolom 1 - Pencarian Cepat ✅ (Selesai)
-### Fase 2: User Memory + Multi-Provider AI + Sandbox Ganda (Target berikutnya)
+### Fase 2: User Memory + Multi-Provider AI + Sandbox Ganda ✅ (Selesai)
 - A. User Memory (SQLite) dengan ekstraksi fakta & forgetting
 - B. Multi-Provider AI Abstraction (OpenRouter, OpenAI, Grok, Gemini)
 - C. Engineer Write/Execute + Dua Sandbox + Rollback
 - D. Budget Control Dashboard
 
-### Fase 3: Sub-agent + Database Detector
-### Fase 4: Ekspansi Lego + Legacy Mode
+### Fase 3: Sub-agent + Database Detector ✅ (Selesai)
+### Fase 4: Ekspansi Lego + Legacy Mode (Target berikutnya)
 
 ---
 
@@ -511,6 +511,8 @@ class LegoModule(ABC):
 - Dua Sandbox + Rollback: ✅
 - Engineer Write/Execute: ✅
 - Budget Dashboard: ✅
+- Sub-agent (Database, File, Web, Research): ✅
+- Database Detector & Schema Mapper: ✅
 
 ---
 
