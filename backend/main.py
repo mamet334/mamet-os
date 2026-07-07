@@ -1,37 +1,15 @@
-"""
-MAMET OS - Entry Point
-=======================
-Titik awal booting MAMET OS.
-Menjalankan FastAPI server, memanggil Main Orchestrator,
-dan menyediakan endpoint upload dokumen untuk RAG.
-"""
-
-import os
-from fastapi import FastAPI, HTTPException, File, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, Any
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+import asyncio
 
-# ---------------------------------------------------------------------------
-# Kernel MAMET OS
-# ---------------------------------------------------------------------------
 from orchestrator.main_orchestrator import MainOrchestrator
 
-# ---------------------------------------------------------------------------
-# RAG Engine
-# ---------------------------------------------------------------------------
-from rag.rag_engine import RAGEngine
+app = FastAPI(title="MAMET OS API", description="API untuk MAMET OS Kernel")
 
-# ---------------------------------------------------------------------------
-# Inisialisasi Aplikasi
-# ---------------------------------------------------------------------------
-app = FastAPI(
-    title="MAMET OS",
-    description="Sistem Operasi Kognitif Tiga Kanal",
-    version="0.1.0"
-)
-
-# CORS
+# Setup CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -40,124 +18,94 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------------------------------------------------------------------------
-# Inisialisasi Kernel & RAG
-# ---------------------------------------------------------------------------
-kernel = MainOrchestrator()
-rag_engine = RAGEngine(persist_dir=os.path.join(os.getcwd(), "chroma_db"))
+# Global orchestrator instance
+orchestrator = MainOrchestrator()
 
-# ---------------------------------------------------------------------------
-# Model Request/Response
-# ---------------------------------------------------------------------------
 class ChatRequest(BaseModel):
     user_id: str
     column: str
     message: str
     api_key: Optional[str] = None
 
-class ChatResponse(BaseModel):
-    response: str
-    sources: list = []
-    actions_taken: list = []
-    requires_approval: bool = False
-    approval_details: dict = {}
+@app.on_event("startup")
+async def startup_event():
+    print("[API] Mem-booting MAMET OS Kernel...")
+    await orchestrator.boot()
 
-# ---------------------------------------------------------------------------
-# Routes
-# ---------------------------------------------------------------------------
+@app.on_event("shutdown")
+async def shutdown_event():
+    print("[API] Mematikan MAMET OS Kernel...")
+    await orchestrator.shutdown()
 
-@app.get("/")
-async def root():
-    return {
-        "system": "MAMET OS",
-        "status": "running",
-        "version": "0.1.0"
-    }
-
-@app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest):
-    """
-    Endpoint utama chat.
-    Semua kolom (1, 2, 3) masuk melalui sini.
-    """
+@app.post("/api/process")
+async def process_chat(req: ChatRequest):
+    """Endpoint utama untuk memproses chat dari UI."""
     try:
-        result = await kernel.process(
-            user_id=request.user_id,
-            column=request.column,
-            message=request.message,
-            api_key=request.api_key
+        response = await orchestrator.process(
+            user_id=req.user_id,
+            column=req.column,
+            message=req.message,
+            api_key=req.api_key
         )
-        return ChatResponse(**result)
+        return response
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+from fastapi import UploadFile, File
+
+@app.post("/api/upload")
+async def upload_document(file: UploadFile = File(...)):
+    """Endpoint untuk mengunggah dokumen ke RAG."""
+    try:
+        content = await file.read()
+        text_content = content.decode('utf-8', errors='ignore')
+        
+        # Inisialisasi RAGEngine
+        from rag.rag_engine import RAGEngine
+        rag = RAGEngine()
+        
+        result = rag.add_document(text_content, filename=file.filename)
+        return result
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/budget")
+async def get_budget(email: str = "default"):
+    """Dapatkan status budget dan limit."""
+    try:
+        from ai.usage_tracker import UsageTracker
+        tracker = UsageTracker(email)
+        return tracker.get_budget_status()
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.post("/upload")
-async def upload_document(
-    file: UploadFile = File(...),
-    api_key: Optional[str] = None
-):
-    """
-    Upload dokumen ke RAG.
-    Menerima file PDF, TXT, MD, DOCX, CSV, JSON.
-    """
+@app.get("/api/backups")
+async def get_backups():
+    """Dapatkan daftar backup (Sandbox Rollback)."""
     try:
-        content = await file.read()
-        filename = file.filename
-
-        # Parsing berdasarkan ekstensi
-        if filename.endswith('.pdf'):
-            try:
-                import fitz
-                doc = fitz.open(stream=content, filetype="pdf")
-                text = ""
-                for page in doc:
-                    text += page.get_text()
-            except ImportError:
-                return {"status": "error", "message": "PyMuPDF tidak terinstall. Install: pip install PyMuPDF"}
-        elif filename.endswith('.docx'):
-            try:
-                from docx import Document
-                from io import BytesIO
-                doc = Document(BytesIO(content))
-                text = "\n".join([para.text for para in doc.paragraphs])
-            except ImportError:
-                return {"status": "error", "message": "python-docx tidak terinstall"}
-        elif filename.endswith('.csv'):
-            # CSV: dibaca sebagai teks, tetap bisa di-search
-            text = content.decode('utf-8', errors='ignore')
-        elif filename.endswith('.json'):
-            import json
-            data = json.loads(content.decode('utf-8'))
-            text = json.dumps(data, indent=2, ensure_ascii=False)
-        else:
-            # TXT, MD, atau plain text
-            text = content.decode('utf-8', errors='ignore')
-
-        if not text.strip():
-            return {"status": "error", "message": "Dokumen kosong"}
-
-        # Set API key jika diberikan
-        if api_key:
-            rag_engine.set_api_key(api_key)
-
-        # Tambahkan ke RAG
-        result = rag_engine.add_document(text, filename)
-        return result
-
+        from engineer.sandbox import EngineerSandbox
+        sandbox = EngineerSandbox()
+        return {"backups": sandbox.list_backups()}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/rag/stats")
-async def rag_stats():
-    """Statistik RAG."""
-    return rag_engine.get_stats()
+class RollbackRequest(BaseModel):
+    filename: str
 
-@app.on_event("startup")
-async def startup():
-    await kernel.boot()
-    print("✅ MAMET OS booted successfully")
+@app.post("/api/rollback")
+async def execute_rollback(req: RollbackRequest):
+    """Eksekusi rollback ke versi zip tertentu."""
+    try:
+        from engineer.sandbox import EngineerSandbox
+        sandbox = EngineerSandbox()
+        result = sandbox.rollback_to(req.filename)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.on_event("shutdown")
-async def shutdown():
-    await kernel.shutdown()
-    print("👋 MAMET OS shutdown complete")
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

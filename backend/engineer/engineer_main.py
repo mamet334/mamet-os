@@ -6,6 +6,7 @@ dan menyediakan interface ke Main Orchestrator.
 """
 
 import subprocess
+import re
 from pathlib import Path
 from typing import Dict, Any, Optional
 
@@ -45,6 +46,20 @@ class Engineer:
             return await self._handle_write_file(message)
         elif intent == "execute_command":
             return await self._handle_execute_command(message)
+        elif intent == "review":
+            return self.review_changes()
+        elif intent == "approve":
+            return self.approve_changes(message)
+        elif intent == "reject":
+            return self.reject_changes(message)
+        elif intent == "rollback":
+            # Ekstrak nama file backup dari pesan
+            filename_match = re.search(r'backup_\d{8}_\d{6}\.zip', message)
+            if filename_match:
+                return self.rollback_to_backup(filename_match.group())
+            return self.list_backups()
+        elif intent == "list_backups":
+            return self.list_backups()
         else:
             result = self._handle_unknown(message)
             print(f"  [ENGINEER.PROCESS] Unknown result: {result}")
@@ -65,6 +80,16 @@ class Engineer:
             return "write_file"
         elif any(word in msg for word in ["jalankan", "exec", "run", "command"]):
             return "execute_command"
+        elif any(word in msg for word in ["review", "diff", "tinjau"]):
+            return "review"
+        elif any(word in msg for word in ["setujui", "approve", "deploy"]):
+            return "approve"
+        elif any(word in msg for word in ["tolak", "reject", "batal"]):
+            return "reject"
+        elif any(word in msg for word in ["rollback", "kembalikan", "restore"]):
+            return "rollback"
+        elif any(word in msg for word in ["backup", "cadangan"]):
+            return "list_backups"
         else:
             return "unknown"
     
@@ -125,33 +150,87 @@ class Engineer:
         }
     
     async def _handle_write_file(self, message: str) -> Dict[str, Any]:
-        """Tangani permintaan menulis file."""
-        return {
-            "action": "need_approval",
-            "response": "⚠️ Engineer ingin menulis file. Fitur ini memerlukan persetujuan Anda terlebih dahulu.",
-            "approval_details": {
-                "type": "write_file",
-                "message": message
+        """Tangani permintaan menulis file - perlu persetujuan."""
+        # Ekstrak path dan konten dari pesan
+        path_match = re.search(
+            r'(?:tulis|buat|write)\s+(?:file\s+)?["\']?([^\s"\']+\.\w+)["\']?',
+            message,
+            re.IGNORECASE
+        )
+        
+        if not path_match:
+            return {
+                "action": "direct_reply",
+                "response": "❌ Format tidak dikenali. Gunakan: 'tulis file path/ke/file.py dengan isi: ...'"
             }
-        }
+        
+        file_path = path_match.group(1)
+        
+        # Ekstrak konten setelah "dengan isi:" atau "content:"
+        content_match = re.search(
+            r'(?:dengan\s+isi|content)\s*:\s*(.+)',
+            message,
+            re.IGNORECASE | re.DOTALL
+        )
+        content = content_match.group(1).strip() if content_match else ""
+        
+        # Tulis ke workspace sandbox
+        try:
+            from engineer.sandbox import EngineerSandbox
+            sandbox = EngineerSandbox()
+            
+            result = sandbox.write_file(file_path, content)
+            
+            # Minta persetujuan untuk memindahkan ke review
+            return {
+                "action": "need_approval",
+                "response": f"✅ File ditulis ke workspace:\n```\n{content[:500]}\n```\n\nLanjutkan ke review?",
+                "approval_details": {
+                    "type": "write_file",
+                    "file_path": file_path,
+                    "content": content,
+                    "sandbox_result": result
+                }
+            }
+        except Exception as e:
+            return {
+                "action": "direct_reply",
+                "response": f"❌ Gagal menulis file: {str(e)}"
+            }
     
     async def _handle_execute_command(self, message: str) -> Dict[str, Any]:
-        """Tangani permintaan eksekusi command."""
+        """Tangani permintaan eksekusi command - perlu persetujuan."""
         command = self._extract_command(message)
         
         if not command:
-            return {"action": "direct_reply", "response": "❌ Command apa yang ingin dijalankan?"}
+            return {
+                "action": "direct_reply",
+                "response": "❌ Command apa yang ingin dijalankan? Gunakan: 'jalankan pip install x'"
+            }
         
+        # Cek keamanan
         check = self.safety_guard.check_action(ActionType.EXECUTE, command)
         if not check.allowed:
             return {"action": "direct_reply", "response": check.message}
         
         approval = self.safety_guard.get_approval_prompt(ActionType.EXECUTE, command)
         
+        # Simpan command ke file pending unik agar menghindari konflik paralel
+        import random
+        task_id = str(random.randint(1000, 9999))
+        sandbox_dir = self.root_path / ".sandbox"
+        sandbox_dir.mkdir(exist_ok=True)
+        (sandbox_dir / f".pending_{task_id}").write_text(command, encoding="utf-8")
+        
         return {
             "action": "need_approval",
-            "response": f"⚠️ Engineer ingin menjalankan:\n```\n{command}\n```\n\nSilakan setujui atau tolak.",
-            "approval_details": approval
+            "response": f"⚠️ Engineer ingin menjalankan:\n```\n{command}\n```\n\nSilakan setujui dengan mengetik: **setujui {task_id}**",
+            "approval_details": {
+                "type": "execute_command",
+                "command": command,
+                "task_id": task_id,
+                "approval_prompt": approval
+            }
         }
     
     def _handle_unknown(self, message: str) -> Dict[str, Any]:
@@ -165,14 +244,18 @@ class Engineer:
                 "• 📄 **Baca file** - Ketik 'baca file backend/main.py'\n"
                 "• 📁 **List direktori** - Ketik 'list folder'\n"
                 "• ✏️ **Tulis/edit file** - Ketik 'tulis file...' (perlu persetujuan)\n"
-                "• ⚡ **Jalankan command** - Ketik 'jalankan...' (perlu persetujuan)\n\n"
+                "• ⚡ **Jalankan command** - Ketik 'jalankan...' (perlu persetujuan)\n"
+                "• 🔍 **Review perubahan** - Ketik 'review'\n"
+                "• ✅ **Setujui perubahan** - Ketik 'setujui'\n"
+                "• 🚫 **Tolak perubahan** - Ketik 'tolak'\n"
+                "• 🔄 **Rollback** - Ketik 'rollback' atau 'rollback backup_20260707_120000.zip'\n"
+                "• 📦 **List backup** - Ketik 'backup'\n\n"
                 "Apa yang ingin Anda lakukan?"
             )
         }
     
     def _extract_file_path(self, message: str) -> Optional[str]:
         """Ekstrak path file dari pesan."""
-        import re
         patterns = [
             r'(?:baca|lihat|tampilkan|read)\s+(?:file\s+)?["\']?([^\s"\']+\.(?:py|tsx|ts|js|json|md|txt|css))["\']?',
             r'file\s+["\']?([^\s"\']+)["\']?'
@@ -185,16 +268,22 @@ class Engineer:
     
     def _extract_path(self, message: str) -> Optional[str]:
         """Ekstrak path direktori dari pesan."""
-        import re
-        match = re.search(r'(?:folder|direktori|path)\s+["\']?([^\s"\']+)["\']?', message, re.IGNORECASE)
+        match = re.search(
+            r'(?:folder|direktori|path)\s+["\']?([^\s"\']+)["\']?',
+            message,
+            re.IGNORECASE
+        )
         if match:
             return match.group(1)
         return None
     
     def _extract_command(self, message: str) -> Optional[str]:
         """Ekstrak command dari pesan."""
-        import re
-        match = re.search(r'(?:jalankan|exec|run|command)\s+["\']?(.+?)["\']?$', message, re.IGNORECASE)
+        match = re.search(
+            r'(?:jalankan|exec|run|command)\s+["\']?(.+?)["\']?$',
+            message,
+            re.IGNORECASE
+        )
         if match:
             return match.group(1).strip()
         return None
@@ -216,3 +305,168 @@ class Engineer:
             f"**Struktur Proyek:**\n```\n{tree[:1000]}\n```\n\n"
             f"_Ketik 'list folder' untuk detail lengkap_"
         )
+    
+    # ---------- Fungsi Baru untuk Sandbox & Rollback ----------
+    
+    def review_changes(self) -> Dict[str, Any]:
+        """Tampilkan diff antara workspace/review dan live."""
+        try:
+            from engineer.sandbox import EngineerSandbox
+            sandbox = EngineerSandbox()
+            
+            # Pindahkan workspace ke review dulu
+            sandbox.move_to_review()
+            
+            # Dapatkan diff
+            diff = sandbox.get_diff()
+            
+            return {
+                "action": "need_approval",
+                "response": diff,
+                "approval_details": {
+                    "type": "review_changes",
+                    "diff": diff
+                }
+            }
+        except Exception as e:
+            return {
+                "action": "direct_reply",
+                "response": f"❌ Gagal review: {str(e)}"
+            }
+    
+    def approve_changes(self, message: str = "") -> Dict[str, Any]:
+        """Setujui perubahan (bisa file review atau pending command) dan deploy."""
+        try:
+            sandbox_dir = self.root_path / ".sandbox"
+            pending_files = list(sandbox_dir.glob(".pending_*"))
+            
+            # Cek apakah ada ID spesifik di pesan
+            match = re.search(r'setujui\s+(\d{4})', message, re.IGNORECASE)
+            target_file = None
+            
+            if match:
+                task_id = match.group(1)
+                target_file = sandbox_dir / f".pending_{task_id}"
+                if not target_file.exists():
+                    return {"action": "direct_reply", "response": f"❌ Task ID {task_id} tidak ditemukan atau sudah dieksekusi."}
+            elif pending_files:
+                if len(pending_files) == 1:
+                    target_file = pending_files[0]
+                else:
+                    return {"action": "direct_reply", "response": f"⚠️ Ada {len(pending_files)} eksekusi tertunda. Harap spesifik, misal: 'setujui 1234'"}
+                    
+            if target_file and target_file.exists():
+                command = target_file.read_text(encoding="utf-8").strip()
+                target_file.unlink()
+                
+                from engineer.executor import Executor
+                # Eksekusi langsung di project root karena user sudah setuju
+                executor = Executor(workspace_dir=str(self.root_path))
+                res = executor.execute(command)
+                
+                if res['status'] == 'success':
+                    return {
+                        "action": "direct_reply",
+                        "response": f"✅ Eksekusi `{command}` berhasil:\n```\n{res['stdout']}\n```"
+                    }
+                else:
+                    return {
+                        "action": "direct_reply",
+                        "response": f"❌ Eksekusi `{command}` gagal:\n```\n{res['stderr']}\n```"
+                    }
+            
+            # Jika tidak ada pending command, berarti ini persetujuan write_file
+            from engineer.sandbox import EngineerSandbox
+            sandbox = EngineerSandbox(str(self.root_path))
+            
+            result = sandbox.approve_to_live()
+            
+            return {
+                "action": "direct_reply",
+                "response": f"✅ Perubahan file disetujui! {result['message']}\n\nBackup telah dibuat di folder rollback."
+            }
+        except Exception as e:
+            return {
+                "action": "direct_reply",
+                "response": f"❌ Gagal approve: {str(e)}"
+            }
+    
+    def reject_changes(self, message: str = "") -> Dict[str, Any]:
+        """Tolak perubahan (file review atau pending command)."""
+        try:
+            sandbox_dir = self.root_path / ".sandbox"
+            pending_files = list(sandbox_dir.glob(".pending_*"))
+            
+            match = re.search(r'tolak\s+(\d{4})', message, re.IGNORECASE)
+            if match:
+                task_id = match.group(1)
+                target = sandbox_dir / f".pending_{task_id}"
+                if target.exists():
+                    target.unlink()
+                    return {"action": "direct_reply", "response": f"🚫 Eksekusi task {task_id} dibatalkan."}
+            elif pending_files:
+                for f in pending_files:
+                    f.unlink()
+                return {"action": "direct_reply", "response": "🚫 Semua eksekusi tertunda dibatalkan."}
+                
+            from engineer.sandbox import EngineerSandbox
+            sandbox = EngineerSandbox(str(self.root_path))
+            
+            result = sandbox.reject_changes()
+            
+            return {
+                "action": "direct_reply",
+                "response": f"🚫 Perubahan ditolak. {result['message']}"
+            }
+        except Exception as e:
+            return {
+                "action": "direct_reply",
+                "response": f"❌ Gagal reject: {str(e)}"
+            }
+    
+    def rollback_to_backup(self, filename: str) -> Dict[str, Any]:
+        """Rollback ke backup tertentu."""
+        try:
+            from engineer.sandbox import EngineerSandbox
+            sandbox = EngineerSandbox(str(self.root_path))
+            
+            result = sandbox.rollback_to(filename)
+            
+            return {
+                "action": "direct_reply",
+                "response": f"🔄 {result['message']}\n\nSistem telah dikembalikan ke {filename}"
+            }
+        except Exception as e:
+            return {
+                "action": "direct_reply",
+                "response": f"❌ Gagal rollback: {str(e)}"
+            }
+    
+    def list_backups(self) -> Dict[str, Any]:
+        """List backup yang tersedia."""
+        try:
+            from engineer.sandbox import EngineerSandbox
+            sandbox = EngineerSandbox(str(self.root_path))
+            
+            backups = sandbox.list_backups()
+            
+            if not backups:
+                return {
+                    "action": "direct_reply",
+                    "response": "📦 Belum ada backup."
+                }
+            
+            lines = ["📦 **Backup Tersedia:**\n"]
+            for b in backups[:10]:
+                size_kb = b['size'] / 1024
+                lines.append(f"- {b['filename']} ({size_kb:.1f} KB)")
+            
+            return {
+                "action": "direct_reply",
+                "response": "\n".join(lines)
+            }
+        except Exception as e:
+            return {
+                "action": "direct_reply",
+                "response": f"❌ Gagal list backup: {str(e)}"
+            }

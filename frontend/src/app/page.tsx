@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import BudgetDashboard from "@/components/BudgetDashboard";
 
 function ChatColumn({
   columnId,
@@ -11,7 +12,7 @@ function ChatColumn({
   label: string;
   icon: string;
 }) {
-  const [messages, setMessages] = useState<{ role: string; content: string }[]>([]);
+  const [messages, setMessages] = useState<{ role: string; content: string; requires_approval?: boolean; approval_details?: any }[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -23,17 +24,23 @@ function ChatColumn({
     setInput("");
     setLoading(true);
     try {
-      const res = await fetch("/api/chat", {
+      const res = await fetch("http://127.0.0.1:8000/api/process", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           user_id: "test@email.com",
           column: columnId,
           message: input,
+          api_key: localStorage.getItem("openrouter_key") || null
         }),
       });
       const data = await res.json();
-      setMessages((prev) => [...prev, { role: "system", content: data.response }]);
+      setMessages((prev) => [...prev, { 
+        role: "system", 
+        content: data.response,
+        requires_approval: data.requires_approval,
+        approval_details: data.approval_details
+      }]);
     } catch {
       setMessages((prev) => [...prev, { role: "system", content: "❌ Gagal" }]);
     } finally {
@@ -72,6 +79,23 @@ function ChatColumn({
     }
   };
 
+  const handleAction = (actionType: "setujui" | "tolak", taskId?: string) => {
+    setMessages((prev) => {
+      const newMsgs = [...prev];
+      if (newMsgs.length > 0) {
+        newMsgs[newMsgs.length - 1].requires_approval = false;
+      }
+      return newMsgs;
+    });
+    
+    const commandText = taskId ? `${actionType} ${taskId}` : actionType;
+    setInput(commandText);
+    setTimeout(() => {
+      const btn = document.getElementById(`send-btn-${columnId}`);
+      if(btn) btn.click();
+    }, 50);
+  };
+
   return (
     <div className="flex flex-col h-full bg-[#0d0d0d]">
       <div className="px-4 py-3 border-b border-[#222] bg-[#111] flex items-center justify-between">
@@ -106,7 +130,23 @@ function ChatColumn({
                 : "bg-[#1a1a1a] mr-8 border border-[#333] text-gray-200"
             }`}
           >
-            {msg.content}
+            <div className="whitespace-pre-wrap font-mono whitespace-pre-wrap break-words">{msg.content}</div>
+            {msg.requires_approval && columnId === "kolom3" && (
+              <div className="mt-4 flex gap-2 border-t border-[#444] pt-3">
+                <button 
+                  onClick={() => handleAction("setujui", msg.approval_details?.task_id)}
+                  className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded text-xs font-bold transition flex-1"
+                >
+                  ✅ Setujui & Deploy
+                </button>
+                <button 
+                  onClick={() => handleAction("tolak", msg.approval_details?.task_id)}
+                  className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-xs font-bold transition flex-1"
+                >
+                  🚫 Tolak
+                </button>
+              </div>
+            )}
           </div>
         ))}
         {loading && <p className="text-gray-400 text-sm">Memproses...</p>}
@@ -122,6 +162,7 @@ function ChatColumn({
             className="flex-1 bg-[#2a2a2a] border border-[#555] rounded px-3 py-2 text-sm text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
           />
           <button
+            id={`send-btn-${columnId}`}
             onClick={handleSend}
             disabled={loading || !input.trim()}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:text-gray-400 rounded text-sm font-medium text-white transition"
@@ -136,6 +177,7 @@ function ChatColumn({
 
 export default function Home() {
   const [activeColumn, setActiveColumn] = useState("kolom2");
+  const [showBudget, setShowBudget] = useState(false);
 
   const columns = [
     { id: "kolom1", label: "Pencarian Cepat", icon: "🔍" },
@@ -147,8 +189,22 @@ export default function Home() {
     <div className="h-screen flex flex-col bg-[#0a0a0a]">
       <header className="bg-[#111] border-b border-[#222] px-4 py-3 flex items-center justify-between shrink-0">
         <h1 className="text-lg font-bold text-gray-100">MAMET OS</h1>
-        <span className="text-xs text-gray-500">v0.1.0</span>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowBudget(!showBudget)}
+            className="text-xs bg-[#222] hover:bg-[#333] px-2 py-1 rounded text-gray-300 transition"
+          >
+            💰 Budget
+          </button>
+          <span className="text-xs text-gray-500">v0.2.0</span>
+        </div>
       </header>
+
+      {showBudget && (
+        <div className="bg-[#0a0a0a] border-b border-[#222]">
+          <BudgetDashboard />
+        </div>
+      )}
 
       <nav className="md:hidden flex border-b border-[#222] shrink-0">
         {columns.map((col) => (

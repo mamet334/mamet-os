@@ -29,16 +29,6 @@ class DecisionEngine:
     ) -> dict:
         """
         Putuskan tindakan selanjutnya.
-        
-        Args:
-            user_id: Email user
-            column: Kolom chat
-            plan: Rencana
-            evidence: Evidence yang dikumpulkan
-            api_key: OpenRouter API key
-            
-        Returns:
-            Dict berisi keputusan
         """
         confidence = evidence.get("confidence", 0)
         intent = plan.get("intent", "chat")
@@ -52,7 +42,7 @@ class DecisionEngine:
         }
         
         # -----------------------------------------------------------------
-        # KOLOM 3 (Engineer) - SELALU butuh persetujuan untuk perubahan
+        # KOLOM 3 (Engineer)
         # -----------------------------------------------------------------
         if column == "kolom3":
             engineer_data = None
@@ -88,10 +78,9 @@ class DecisionEngine:
                 decision["actions_taken"] = ["analyzed_request"]
         
         # -----------------------------------------------------------------
-        # KOLOM 1 (Pencarian Cepat) - RAG-focused
+        # KOLOM 1 (Pencarian Cepat)
         # -----------------------------------------------------------------
         elif column == "kolom1":
-            # Cek apakah RAG memberikan hasil
             rag_results = []
             for item in evidence.get("items", []):
                 if item.get("source") == "rag":
@@ -110,21 +99,71 @@ class DecisionEngine:
                 decision["actions_taken"] = ["no_results_found"]
         
         # -----------------------------------------------------------------
-        # KOLOM 2 (Asisten Pribadi) - Memori + Agen
+        # KOLOM 2 (Asisten Pribadi) - MEMORI + RAG
         # -----------------------------------------------------------------
         else:
-            if confidence > self.thresholds["direct_reply"]:
+            # Cek apakah ada Sub-Agent
+            sub_agent_response = None
+            for item in evidence.get("items", []):
+                if item.get("source") == "sub_agent":
+                    sub_agent_response = item.get("response")
+                    break
+                    
+            if sub_agent_response:
                 decision["action"] = "direct_reply"
-                decision["actions_taken"] = ["found_in_memory_or_rag"]
-            elif confidence > self.thresholds["need_llm"]:
+                decision["message"] = sub_agent_response
+                decision["actions_taken"] = ["sub_agent_responded"]
+                return decision
+                
+            # Cek apakah ada hasil dari Lego Module
+            lego_data = None
+            lego_module = None
+            for item in evidence.get("items", []):
+                if item.get("source") == "lego_module":
+                    lego_data = item.get("data")
+                    lego_module = item.get("module")
+                    break
+                    
+            if lego_data:
+                decision["action"] = "direct_reply"
+                decision["message"] = str(lego_data)
+                decision["actions_taken"] = [f"lego_module_executed:{lego_module}"]
+                return decision
+                
+            # Cek apakah ada fakta dari User Memory
+            memory_context = None
+            memory_items = []
+            for item in evidence.get("items", []):
+                if item.get("source") == "user_memory":
+                    memory_context = item.get("facts_context", "")
+                    memory_items.append(item)
+                    break
+            
+            # Cek hasil RAG
+            rag_results = []
+            for item in evidence.get("items", []):
+                if item.get("source") == "rag":
+                    rag_results = item.get("results", [])
+                    break
+            
+            # Gabungkan konteks
+            combined_context = []
+            if memory_context:
+                combined_context.append(memory_context)
+            if rag_results:
+                rag_text = "\n".join([r["text"][:200] for r in rag_results[:3]])
+                combined_context.append(f"Informasi relevan:\n{rag_text}")
+            
+            if combined_context:
+                decision["action"] = "need_llm"
+                decision["actions_taken"] = ["found_memory", "found_rag"]
+                decision["combined_context"] = "\n\n".join(combined_context)
+            elif confidence > self.thresholds["need_agent"]:
                 decision["action"] = "need_llm"
                 decision["actions_taken"] = ["partial_match", "need_llm_generation"]
-            elif confidence > self.thresholds["need_agent"]:
-                decision["action"] = "need_agent"
-                decision["agent"] = "web_search"
-                decision["actions_taken"] = ["no_local_knowledge", "escalating_to_agent"]
             else:
-                decision["action"] = "direct_reply"
-                decision["actions_taken"] = ["low_confidence"]
+                # Confidence rendah tapi tetap butuh LLM untuk respons personal
+                decision["action"] = "need_llm"
+                decision["actions_taken"] = ["low_confidence", "need_llm_generation"]
         
         return decision

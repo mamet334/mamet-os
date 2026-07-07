@@ -2,12 +2,8 @@
 MAMET OS - Planning Engine
 ============================
 Membuat rencana tindakan secara SIMBOLIK (tanpa LLM).
-
-Filosofi:
-- Aturan if-then yang deterministik
-- Cepat, tidak ada biaya API
-- Dapat diperluas dengan aturan baru
 """
+import re
 
 class PlanningEngine:
     """Mesin perencana simbolik."""
@@ -24,7 +20,7 @@ class PlanningEngine:
                 "description": "Pencarian cepat via RAG"
             },
             "kolom2": {
-                "steps": ["check_user_memory", "check_rag", "decide_if_need_agent", "respond"],
+                "steps": ["check_user_memory", "check_rag", "check_lego_modules", "decide_if_need_agent", "respond"],
                 "description": "Asisten pribadi dengan memori"
             },
             "kolom3": {
@@ -40,59 +36,53 @@ class PlanningEngine:
     async def create_plan(self, user_id: str, column: str, message: str) -> dict:
         """
         Buat rencana berdasarkan kolom dan pesan user.
-        
-        Args:
-            user_id: Email user
-            column: Kolom chat ("kolom1", "kolom2", "kolom3")
-            message: Pesan user
-            
-        Returns:
-            Dict berisi langkah-langkah rencana
         """
-        # Ambil aturan default untuk kolom ini
         rule = self.rules.get(column, self.rules["kolom2"])
-        
-        # Deteksi intent sederhana dari pesan
         intent = self._detect_intent(message)
         
         plan = {
             "column": column,
             "intent": intent,
-            "steps": rule["steps"],
+            "steps": list(rule["steps"]),
             "original_message": message,
-            "created_at": None  # Akan diisi timestamp saat eksekusi
+            "created_at": None
         }
         
-        # Tambahkan langkah spesifik berdasarkan intent
         if intent == "search":
             plan["steps"].insert(0, "parse_search_query")
         elif intent == "command":
             plan["steps"].insert(0, "parse_command")
         elif intent == "question":
             plan["steps"].insert(0, "analyze_question_type")
+            
+        # Deteksi Sub-Agent (Fase 3)
+        agent_pattern = r'\b(?:agen|agent|pakai agen|gunakan agen)(?:(?:\s+\w+)?\s+)?(database|research|web|file)\b'
+        agent_match = re.search(agent_pattern, message.lower())
+        if agent_match:
+            plan["sub_agent"] = agent_match.group(1)
+            plan["steps"].append("invoke_sub_agent")
         
         return plan
     
     def _detect_intent(self, message: str) -> str:
-        """
-        Deteksi intent sederhana dari pesan.
-        SIMBOLIK - tidak pakai LLM.
-        """
-        message_lower = message.lower().strip()
+        """Deteksi intent yang lebih cerdas (RegEx & Pola Kalimat)."""
+        msg = message.lower().strip()
         
-        # Command patterns
-        if any(message_lower.startswith(word) for word in ["buat", "bikin", "tambah", "hapus", "edit", "ubah"]):
+        # Pola Command (instruksi tegas di awal kalimat)
+        command_pattern = r'^(tolong\s+)?(buat|bikin|tambah|hapus|edit|ubah|perbaiki|tulis|jalankan|eksekusi)\b'
+        if re.search(command_pattern, msg):
             return "command"
-        
-        # Search patterns
-        if any(word in message_lower for word in ["cari", "temukan", "dimana", "siapa", "kapan"]):
+            
+        # Pola Search (pencarian dokumen atau informasi spesifik)
+        search_pattern = r'\b(cari|temukan|cek dokumen|di file mana|dimana|siapa|kapan)\b'
+        if re.search(search_pattern, msg):
             return "search"
-        
-        # Question patterns
-        if "?" in message_lower or any(message_lower.startswith(word) for word in ["apa", "bagaimana", "kenapa", "mengapa"]):
+            
+        # Pola Question (pertanyaan tentang sesuatu)
+        question_pattern = r'^(apa|bagaimana|kenapa|mengapa|apakah|bisa|bisakah)\b|\?$'
+        if re.search(question_pattern, msg):
             return "question"
         
-        # Default
         return "chat"
     
     def add_rule(self, column: str, steps: list, description: str = ""):
