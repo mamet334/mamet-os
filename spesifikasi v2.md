@@ -516,6 +516,20 @@ class LegoModule(ABC):
 
 ---
 
+## Peta Jalan Menuju Finalisasi V2 (Sisa 10%)
+
+Meskipun 90% komponen utama telah diselesaikan (Fase 1-3), V2 baru bisa dianggap 100% "Tamat" setelah menyelesaikan 2 target penutup berikut:
+
+1. **Eksekusi Fase 4 (Fitur Pamungkas)**
+   - **Ekspansi Lego**: Menyempurnakan `LegoRegistry` agar mampu mendeteksi dan menginisialisasi *script* modul kustom secara dinamis tanpa mengubah baris kode inti (Plug-and-Play sesungguhnya).
+   - **Legacy Mode**: Fitur "Kapsul Waktu" yang membekukan *database* fakta menjadi *Read-Only*, mengubah agen dari "Asisten" menjadi representasi abadi (kloning digital) dari pengguna berdasarkan memori yang terekam.
+
+2. **Resolusi Tantangan #1 & #6 (Production Packaging)**
+   - **Bundling Tauri & Python**: Menyatukan *Frontend* Svelte (Tauri) dan *Backend* FastAPI (Python) menjadi satu *binary* / *executable* `.exe` mandiri.
+   - **Mekanisme Distribusi**: Aplikasi harus bisa diinstal di OS Windows (*one-click installer*) tanpa mengharuskan pengguna membuka terminal atau menjalankan *npm/python script* secara manual.
+
+---
+
 ## Prinsip Utama
 - **Fleksibel**: Komponen independen, plug-and-play (Lego)
 - **Universal**: Berjalan di laptop, HP (via Termux), robot (Raspberry Pi)
