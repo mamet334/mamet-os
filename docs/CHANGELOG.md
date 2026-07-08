@@ -61,6 +61,7 @@ dan proyek ini menggunakan [Semantic Versioning](https://semver.org/lang/id/).
 - **Dashboard Awal:** Halaman pemantauan sistem (landing page) interaktif sebelum memasuki ruang kerja. Menampilkan indikator kesehatan Kernel, RAG, Memori Pengguna, dan anggaran limit model bahasa AI secara *real-time*.
 - **Credit Berjalan:** Mekanisme *onboarding* dramatis (teks animasi vertikal) untuk menyampaikan filosofi warisan digital dan tata cara penggunaan. Berkas narasinya dapat disesuaikan pengguna melalui modifikasi pada `desktop/static/credit.txt`.
 - **Restrukturisasi Routing:** Memisahkan alur masuk aplikasi menjadi SPA (Single Page Application) penuh (Login → Dashboard → Credit → Workspace/3-Kolom).
+- **Desain UI/UX Modern (Level 4):** Mengaplikasikan tema *Premium Glassmorphism* (backdrop-blur-xl, bayangan cyan glowing) secara global. Menambahkan Google Fonts (Inter & JetBrains Mono) dan merombak estetika komponen dengan palet warna spesifik MAMET OS (Cyan, Purple, Amber).
 
 ### Diperbaiki
 - Memperbaiki pembacaan *AI Provider* pada *endpoint* `/api/status` di `main.py` yang sebelumnya memicu galat (Status 500) saat *Dashboard Awal* memuat data. Sistem sekarang menggunakan referensi `ProviderRouter` yang tepat.
