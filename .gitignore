@@ -17,3 +17,5 @@ backend/chroma_db/
 *.db
 *.sqlite3
 desktop/src-tauri/target/
+credentials.json
+token.json

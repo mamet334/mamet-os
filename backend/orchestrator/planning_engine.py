@@ -39,10 +39,27 @@ class PlanningEngine:
         """
         rule = self.rules.get(column, self.rules["kolom2"])
         intent = self._detect_intent(message)
+        emotion = self._detect_emotion(message)
+        
+        # Deteksi Multi-Langkah
+        # Kita memisahkan string berdasarkan kata hubung, pastikan tidak memakan kata kerja (seperti 'simpan' atau 'jadikan')
+        multi_step_keywords = r'(?:\s*,\s*lalu\s+|\s+lalu\s+|\s*,\s*kemudian\s+|\s+kemudian\s+|\s+setelah\s+itu\s+|\s*,\s*dan\s+)'
+        is_multi_step = False
+        sub_tasks = []
+        msg_lower = message.lower()
+        if re.search(multi_step_keywords, msg_lower):
+            is_multi_step = True
+            raw_tasks = re.split(multi_step_keywords, msg_lower)
+            # Ambil bagian task saja
+            sub_tasks = [t.strip() for t in raw_tasks if t.strip()]
         
         plan = {
             "column": column,
             "intent": intent,
+            "emotion": emotion,
+            "requires_structured_format": intent == "summarize",
+            "is_multi_step": is_multi_step,
+            "sub_tasks": sub_tasks,
             "steps": list(rule["steps"]),
             "original_message": message,
             "created_at": None
@@ -73,6 +90,11 @@ class PlanningEngine:
         if re.search(command_pattern, msg):
             return "command"
             
+        # Pola Summarize (meringkas, merangkum, resume)
+        summarize_pattern = r'\b(ringkas|rangkum|resume|buatkan kesimpulan|summary|inti dari|ringkasan)\b'
+        if re.search(summarize_pattern, msg):
+            return "summarize"
+            
         # Pola Search (pencarian dokumen atau informasi spesifik)
         search_pattern = r'\b(cari|temukan|cek dokumen|di file mana|dimana|siapa|kapan)\b'
         if re.search(search_pattern, msg):
@@ -84,6 +106,28 @@ class PlanningEngine:
             return "question"
         
         return "chat"
+        
+    def _detect_emotion(self, message: str) -> str:
+        """Mendeteksi emosi atau nada bicara pengguna untuk Tone Adaptation."""
+        msg = message.lower().strip()
+        
+        # 1. Marah / Kesal
+        if re.search(r'(rusak|gagal|error terus|jelek|bodoh|payah|capek|kesal)', msg) or msg.count('!') >= 2:
+            return "marah/kesal"
+            
+        # 2. Terburu-buru
+        if re.search(r'(cepat|sekarang|buru|urgent|darurat|langsung saja)', msg) or (len(msg) < 15 and msg.endswith('!')):
+            return "terburu-buru"
+            
+        # 3. Bingung / Pusing / Putus Asa
+        if re.search(r'(bingung|pusing|gak ngerti|tidak paham|tolong banget|help|nyerah|susah)', msg) or msg.count('?') >= 2:
+            return "bingung/sedih"
+            
+        # 4. Santai / Kasual
+        if re.search(r'(halo|bro|dong|sih|hehe|wkwk|haha|keren|mantap|oke|sip)', msg):
+            return "santai"
+            
+        return "netral"
     
     def add_rule(self, column: str, steps: list, description: str = ""):
         """Tambah aturan baru (untuk ekspansi Lego)."""

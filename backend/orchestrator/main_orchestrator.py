@@ -59,7 +59,8 @@ class MainOrchestrator:
         column: str,
         message: str,
         api_key: Optional[str] = None,
-        agent: Optional[str] = None
+        agent: Optional[str] = None,
+        project_context: Optional[str] = None
     ) -> Dict[str, Any]:
         start_time = time.time()
         
@@ -76,6 +77,10 @@ class MainOrchestrator:
             column=column,
             message=message
         )
+        if project_context:
+            plan["project_context"] = project_context
+            if "analyze_project" not in plan["steps"]:
+                plan["steps"].insert(0, "analyze_project")
         if agent:
             plan["sub_agent"] = agent
             if "invoke_sub_agent" not in plan["steps"]:
@@ -234,7 +239,37 @@ class MainOrchestrator:
                         router = ProviderRouter(email=user_id)
                         router.add_provider("openrouter", api_key, priority=1)
                         
-                        system_prompt = "Kamu adalah MAMET OS, asisten pribadi yang personal dan hangat. Gunakan bahasa Indonesia. Jawablah dengan ramah dan singkat."
+                        emotion = plan.get("emotion", "netral")
+                        tone_instructions = {
+                            "marah/kesal": "Pengguna sedang kesal atau frustrasi. Jawablah dengan sangat sabar, meminta maaf jika perlu, sangat solutif, dan jangan bertele-tele.",
+                            "terburu-buru": "Pengguna sedang terburu-buru. Berikan jawaban yang SANGAT SINGKAT, langsung ke intinya, tanpa basa-basi sama sekali.",
+                            "bingung/sedih": "Pengguna sedang kebingungan. Jawablah dengan nada yang sangat empati, menenangkan, hangat, dan pandu langkah demi langkah dengan pelan.",
+                            "santai": "Pengguna sedang santai. Gunakan gaya bahasa kasual, asyik, rileks, dan seperti sahabat akrab (boleh pakai slang ringan).",
+                            "netral": "Jawablah dengan ramah, profesional, dan singkat."
+                        }
+                        tone_prompt = tone_instructions.get(emotion, tone_instructions["netral"])
+                        
+                        system_prompt = f"Kamu adalah MAMET OS, asisten pribadi (bukan sekadar AI chatbot). Gunakan bahasa Indonesia. {tone_prompt}"
+                        
+                        # Injeksi Struktur Format Laporan
+                        if plan.get("requires_structured_format"):
+                            system_prompt += (
+                                "\n\nPENTING: Pengguna meminta ringkasan atau kesimpulan. "
+                                "Kamu WAJIB merespons menggunakan format Terstruktur (Executive Summary) yang sangat rapi. "
+                                "Gunakan Markdown: Heading (##), Poin-poin tebal (- **Topik**: Penjelasan), "
+                                "dan tabel jika ada komparasi data. Jangan menggunakan paragraf yang panjang dan membosankan."
+                            )
+                            
+                        # Injeksi Multi-Langkah Otonom
+                        if plan.get("is_multi_step") and plan.get("sub_tasks"):
+                            tasks_str = "\n".join([f"{i+1}. {t}" for i, t in enumerate(plan["sub_tasks"])])
+                            system_prompt += (
+                                f"\n\nPENTING: Pengguna memberikan instruksi MULTI-LANGKAH (Berantai). "
+                                f"Kamu harus memproses dan menyelesaikan semua urutan tugas berikut ini dalam satu balasan utuh:\n{tasks_str}\n"
+                                "Pastikan tidak ada satu pun langkah yang terlewat. Jika langkah terakhir meminta menyimpan/menulis file, "
+                                "siapkan konten file tersebut di dalam blok kode (Code Block) lalu beritahu pengguna untuk mengetik 'tulis file [nama] dengan isi tersebut' agar Engineer (Kolom 3) bisa mengeksekusinya."
+                            )
+                            
                         messages = [{"role": "system", "content": system_prompt}]
                         
                         if combined_context:
@@ -286,7 +321,6 @@ class MainOrchestrator:
                 agent_name = decision.get("agent")
                 agent_instance = None
                 
-                from ai.provider_router import ProviderRouter
                 router = ProviderRouter(email=user_id)
                 if api_key:
                     router.add_provider("openrouter", api_key, priority=1)

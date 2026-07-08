@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { open } from '@tauri-apps/plugin-dialog';
 
   // State untuk kolom aktif (kini untuk memilih panel mana yang tampil)
   let activeColumn = $state("kolom2");
@@ -35,6 +36,7 @@
   let uploading = $state(false);
   let apiKey = $state("");
   let selectedAgent = $state<string | null>(null);
+  let projectContextPath = $state<string | null>(null);
 
   // State untuk Dashboard (Settings)
   let budgetData = $state<any>(null);
@@ -67,7 +69,8 @@
           column: columnId,
           message: textToSend,
           api_key: apiKey || null,
-          agent: columnId === "kolom2" ? selectedAgent : null
+          agent: columnId === "kolom2" ? selectedAgent : null,
+          project_context: columnId === "kolom2" ? projectContextPath : null
         }),
       });
       
@@ -132,6 +135,21 @@
     } finally {
       uploading = false;
       target.value = '';
+    }
+  }
+
+  async function pickProjectFolder() {
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: "Pilih Folder Proyek"
+      });
+      if (selected && typeof selected === 'string') {
+        projectContextPath = selected;
+      }
+    } catch (error) {
+      console.error("Gagal membuka folder picker:", error);
     }
   }
 
@@ -268,16 +286,34 @@
               {/if}
 
               {#if col.id === "kolom2"}
-                <select 
-                  bind:value={selectedAgent}
-                  class="bg-[#1a1a1f] border border-white/10 rounded-lg text-sm text-white/90 px-3 py-1.5 outline-none focus:border-blue-500/50 transition-colors cursor-pointer"
-                >
-                  <option value={null}>Tanpa Agen</option>
-                  <option value="database">Database Explorer</option>
-                  <option value="file">File Analysis</option>
-                  <option value="web">Web Search</option>
-                  <option value="research">Research</option>
-                </select>
+                <div class="flex items-center gap-2">
+                  {#if projectContextPath}
+                    <div class="flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 px-3 py-1.5 rounded-lg text-sm max-w-[200px]">
+                      <span class="truncate" title={projectContextPath}>📁 {projectContextPath.split(/[\\/]/).pop()}</span>
+                      <button onclick={() => projectContextPath = null} class="hover:text-rose-400 transition-colors" title="Hapus Project Context">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                      </button>
+                    </div>
+                  {:else}
+                    <button 
+                      onclick={pickProjectFolder}
+                      class="bg-slate-800/50 hover:bg-slate-700/50 border border-white/10 text-slate-300 px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2"
+                      title="Pilih folder lokal sebagai konteks"
+                    >
+                      📁 Pilih Folder
+                    </button>
+                  {/if}
+                  <select 
+                    bind:value={selectedAgent}
+                    class="bg-[#1a1a1f] border border-white/10 rounded-lg text-sm text-white/90 px-3 py-1.5 outline-none focus:border-blue-500/50 transition-colors cursor-pointer"
+                  >
+                    <option value={null}>Tanpa Agen</option>
+                    <option value="database">Database Explorer</option>
+                    <option value="file">File Analysis</option>
+                    <option value="web">Web Search</option>
+                    <option value="research">Research</option>
+                  </select>
+                </div>
               {/if}
             </div>
 

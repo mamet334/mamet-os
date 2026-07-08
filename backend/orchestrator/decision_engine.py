@@ -115,6 +115,22 @@ class DecisionEngine:
                 decision["actions_taken"] = ["sub_agent_responded"]
                 return decision
                 
+            # Cek apakah ada hasil dari Project Context (Engineer mode)
+            project_context_data = None
+            for item in evidence.get("items", []):
+                if item.get("source") == "project_context":
+                    project_context_data = item.get("data", {})
+                    break
+                    
+            if project_context_data:
+                action = project_context_data.get("action")
+                if action == "need_approval":
+                    decision["action"] = "need_approval"
+                    decision["message"] = project_context_data.get("response")
+                    decision["approval_details"] = project_context_data.get("approval_details", {})
+                    decision["actions_taken"] = ["project_context_needs_approval"]
+                    return decision
+                
             # Cek apakah ada hasil dari Lego Module
             lego_data = None
             lego_module = None
@@ -150,6 +166,10 @@ class DecisionEngine:
             combined_context = []
             if memory_context:
                 combined_context.append(memory_context)
+            if project_context_data:
+                response_text = project_context_data.get("response", "")
+                if "Apa yang ingin Anda lakukan?" not in response_text:
+                    combined_context.append(f"Konteks Folder Proyek:\n{response_text}")
             if rag_results:
                 rag_text = "\n".join([r["text"][:200] for r in rag_results[:3]])
                 combined_context.append(f"Informasi relevan:\n{rag_text}")

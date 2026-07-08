@@ -116,6 +116,14 @@ class EvidenceCollector:
                     evidence["sources"].append("engineer")
                     evidence["confidence"] = max(evidence["confidence"], result.get("confidence", 0.8))
                     
+            elif step == "analyze_project":
+                print("  [COLLECTOR] Menganalisis Project Context...")
+                result = await self._check_project_context(user_id, plan, api_key)
+                if result:
+                    evidence["items"].append(result)
+                    evidence["sources"].append("project_context")
+                    evidence["confidence"] = max(evidence["confidence"], result.get("confidence", 0.9))
+                    
             elif step == "invoke_sub_agent":
                 result = await self._invoke_sub_agent(user_id, plan, api_key)
                 if result:
@@ -220,6 +228,35 @@ class EvidenceCollector:
             traceback.print_exc()
             return {
                 "source": "engineer",
+                "data": {"error": str(e)},
+                "confidence": 0.1
+            }
+            
+    async def _check_project_context(self, user_id: str, plan: dict, api_key: str = None) -> dict:
+        """Cek Project Context menggunakan kapabilitas Engineer tapi dibatasi ke folder proyek."""
+        project_context = plan.get("project_context")
+        if not project_context:
+            return None
+            
+        print(f"  [PROJECT_CONTEXT] Menggunakan path: {project_context}")
+        try:
+            from engineer.engineer_main import Engineer
+            # Inisialisasi Engineer dengan root_path = folder proyek user
+            engineer = Engineer(root_path=project_context)
+            
+            result = await engineer.process(
+                message=plan.get("original_message", ""),
+                user_id=user_id
+            )
+            return {
+                "source": "project_context",
+                "data": result,
+                "confidence": 0.95
+            }
+        except Exception as e:
+            print(f"  [PROJECT_CONTEXT] ERROR: {str(e)}")
+            return {
+                "source": "project_context",
                 "data": {"error": str(e)},
                 "confidence": 0.1
             }

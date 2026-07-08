@@ -19,7 +19,11 @@ class Engineer:
     """Engineer Basic - Jantung self-maintenance MAMET OS."""
     
     def __init__(self, root_path: str = None):
-        self.root_path = Path(root_path or __file__).parent.parent.parent
+        if root_path:
+            self.root_path = Path(root_path)
+        else:
+            self.root_path = Path(__file__).parent.parent.parent
+            
         self.file_reader = FileReader(str(self.root_path))
         self.code_analyzer = CodeAnalyzer(str(self.root_path))
         self.safety_guard = SafetyGuard()
@@ -75,7 +79,10 @@ class Engineer:
             return "create_backup"
         elif any(word in msg for word in ["analisis", "struktur", "proyek", "codebase"]):
             return "analyze"
-        elif any(word in msg for word in ["baca", "lihat", "tampilkan", "isi file"]):
+        elif any(word in msg for word in ["baca", "lihat", "tampilkan", "isi file", "ringkas", "rangkum"]):
+            # Cek apakah pesan lebih condong ke penulisan (ada instruksi isi)
+            if "dengan isi" in msg or "content:" in msg:
+                return "write_file"
             return "read_file"
         elif any(word in msg for word in ["list", "folder", "direktori", "pohon"]):
             return "list_directory"
@@ -278,8 +285,8 @@ class Engineer:
     def _extract_file_path(self, message: str) -> Optional[str]:
         """Ekstrak path file dari pesan."""
         patterns = [
-            r'(?:baca|lihat|tampilkan|read)\s+(?:file\s+)?["\']?([^\s"\']+\.(?:py|tsx|ts|js|json|md|txt|css))["\']?',
-            r'file\s+["\']?([^\s"\']+)["\']?'
+            r'(?:baca|lihat|tampilkan|read|ringkas|rangkum)\s+(?:dokumen\s+|file\s+)?["\']?([^\s"\']+\.(?:py|tsx|ts|js|json|md|txt|css))["\']?',
+            r'(?:dokumen|file)\s+["\']?([^\s"\']+)["\']?'
         ]
         for pattern in patterns:
             match = re.search(pattern, message, re.IGNORECASE)
