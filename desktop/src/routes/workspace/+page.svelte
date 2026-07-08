@@ -5,11 +5,18 @@
   // State untuk kolom aktif (kini untuk memilih panel mana yang tampil)
   let activeColumn = $state("kolom2");
   
+  // SVG Icons
+  const svgSearch = `<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>`;
+  const svgBot = `<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>`;
+  const svgCode = `<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`;
+  const svgSettings = `<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>`;
+  const svgFolder = `<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-1.22-1.8A2 2 0 0 0 7.53 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>`;
+
   // Konfigurasi Kolom
   const columns = [
-    { id: "kolom1", label: "Pencarian Cepat", icon: "🔍", desc: "RAG & Dokumen" },
-    { id: "kolom2", label: "Asisten Pribadi", icon: "🤖", desc: "User Memory & Sub-Agent" },
-    { id: "kolom3", label: "Engineer", icon: "🔧", desc: "Self-Maintenance" },
+    { id: "kolom1", label: "Pencarian Cepat", icon: svgSearch, desc: "RAG & Dokumen" },
+    { id: "kolom2", label: "Asisten Pribadi", icon: svgBot, desc: "User Memory & Sub-Agent" },
+    { id: "kolom3", label: "Engineer", icon: svgCode, desc: "Self-Maintenance" },
   ];
 
   // State percakapan per kolom
@@ -215,7 +222,7 @@
           onclick={() => activeColumn = col.id}
           class="w-full text-left flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-300 {activeColumn === col.id ? 'bg-mamet-cyan/10 text-mamet-cyan border border-mamet-cyan/30 cyan-glow' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'}"
         >
-          <span class="text-xl">{col.icon}</span>
+          <span class="flex items-center justify-center text-xl">{@html col.icon}</span>
           <div>
             <div class="text-sm font-medium">{col.label}</div>
             <div class="text-[10px] opacity-70">{col.desc}</div>
@@ -229,7 +236,7 @@
         onclick={openDashboard}
         class="w-full text-left flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-300 {activeColumn === 'setting' ? 'bg-mamet-purple/10 text-mamet-purple border border-mamet-purple/30 shadow-[0_0_15px_rgba(233,179,255,0.3)]' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'}"
       >
-        <span class="text-xl">⚙️</span>
+        <span class="flex items-center justify-center text-xl">{@html svgSettings}</span>
         <div>
           <div class="text-sm font-medium">Pengaturan</div>
           <div class="text-[10px] opacity-70">Sistem & Budget AI</div>
@@ -265,7 +272,7 @@
             <!-- Header Kolom Aktif -->
             <div class="px-6 py-4 border-b border-white/5 bg-black/20 backdrop-blur-md flex justify-between items-center z-10 shadow-sm shrink-0">
               <div class="flex items-center gap-3">
-                <span class="text-2xl">{col.icon}</span>
+                <span class="flex items-center justify-center text-2xl text-mamet-cyan/80">{@html col.icon}</span>
                 <div>
                   <h2 class="text-base font-semibold text-white/90">{col.label}</h2>
                   <p class="text-xs text-slate-500">{col.desc}</p>
@@ -288,8 +295,8 @@
               {#if col.id === "kolom2"}
                 <div class="flex items-center gap-2">
                   {#if projectContextPath}
-                    <div class="flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 px-3 py-1.5 rounded-lg text-sm max-w-[200px]">
-                      <span class="truncate" title={projectContextPath}>📁 {projectContextPath.split(/[\\/]/).pop()}</span>
+                    <div class="flex items-center gap-2 bg-mamet-cyan/10 border border-mamet-cyan/30 text-mamet-cyan px-3 py-1.5 rounded-lg text-sm max-w-[200px] shadow-[0_0_10px_rgba(0,219,233,0.1)]">
+                      <span class="truncate flex items-center gap-2" title={projectContextPath}>{@html svgFolder} {projectContextPath.split(/[\\/]/).pop()}</span>
                       <button onclick={() => projectContextPath = null} class="hover:text-rose-400 transition-colors" title="Hapus Project Context">
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                       </button>
@@ -297,10 +304,10 @@
                   {:else}
                     <button 
                       onclick={pickProjectFolder}
-                      class="bg-slate-800/50 hover:bg-slate-700/50 border border-white/10 text-slate-300 px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2"
+                      class="bg-black/30 border border-white/10 hover:border-mamet-cyan/40 text-slate-300 px-3 py-1.5 rounded-lg text-sm transition-colors flex items-center gap-2 hover:text-mamet-cyan"
                       title="Pilih folder lokal sebagai konteks"
                     >
-                      📁 Pilih Folder
+                      {@html svgFolder} Pilih Folder
                     </button>
                   {/if}
                   <select 
@@ -320,9 +327,9 @@
             <!-- Chat Area -->
             <div class="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 custom-scrollbar">
               {#if messages[col.id].length === 0}
-                <div class="flex flex-col items-center justify-center h-full text-slate-600 opacity-50">
-                  <span class="text-6xl mb-4">{col.icon}</span>
-                  <p class="text-sm font-medium tracking-wide">Mulai percakapan di {col.label}</p>
+                <div class="flex flex-col items-center justify-center h-full text-mamet-cyan/20">
+                  <span class="text-6xl mb-4 opacity-50 drop-shadow-[0_0_15px_rgba(0,219,233,0.2)]">{@html col.icon}</span>
+                  <p class="text-sm font-medium tracking-wide text-slate-500">Mulai percakapan di {col.label}</p>
                 </div>
               {/if}
 
