@@ -57,7 +57,8 @@ class Engineer:
             filename_match = re.search(r'backup_\d{8}_\d{6}\.zip', message)
             if filename_match:
                 return self.rollback_to_backup(filename_match.group())
-            return self.list_backups()
+        elif intent == "create_backup":
+            return self._handle_create_backup()
         elif intent == "list_backups":
             return self.list_backups()
         else:
@@ -70,7 +71,9 @@ class Engineer:
         msg = message.lower().strip()
         print(f"  [ENGINEER.DETECT] Message lower: {msg}")
         
-        if any(word in msg for word in ["analisis", "struktur", "proyek", "codebase"]):
+        if any(word in msg for word in ["buat backup", "bikin backup", "cadangkan"]):
+            return "create_backup"
+        elif any(word in msg for word in ["analisis", "struktur", "proyek", "codebase"]):
             return "analyze"
         elif any(word in msg for word in ["baca", "lihat", "tampilkan", "isi file"]):
             return "read_file"
@@ -248,11 +251,29 @@ class Engineer:
                 "• 🔍 **Review perubahan** - Ketik 'review'\n"
                 "• ✅ **Setujui perubahan** - Ketik 'setujui'\n"
                 "• 🚫 **Tolak perubahan** - Ketik 'tolak'\n"
+                "• 💾 **Buat Backup Manual** - Ketik 'buat backup'\n"
                 "• 🔄 **Rollback** - Ketik 'rollback' atau 'rollback backup_20260707_120000.zip'\n"
                 "• 📦 **List backup** - Ketik 'backup'\n\n"
                 "Apa yang ingin Anda lakukan?"
             )
         }
+    
+    def _handle_create_backup(self) -> Dict[str, Any]:
+        """Menangani permintaan pembuatan backup secara manual."""
+        try:
+            from engineer.sandbox import EngineerSandbox
+            sandbox = EngineerSandbox(str(self.root_path))
+            
+            backup_name = sandbox.create_backup()
+            return {
+                "action": "direct_reply",
+                "response": f"✅ **Backup berhasil dibuat!**\n\nFile tersimpan sebagai: `{backup_name}`\nKetik 'rollback {backup_name}' jika Anda ingin kembali ke titik ini kapan saja."
+            }
+        except Exception as e:
+            return {
+                "action": "direct_reply",
+                "response": f"❌ Gagal membuat backup manual: {str(e)}"
+            }
     
     def _extract_file_path(self, message: str) -> Optional[str]:
         """Ekstrak path file dari pesan."""

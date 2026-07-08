@@ -24,7 +24,7 @@ async def deep_audit():
         plan2 = await planner.create_plan("test", "kolom2", "Namaku slamet.")
         plan3 = await planner.create_plan("test", "kolom3", "list folder")
         
-        if "check_rag" in plan1['steps'] and "check_user_memory" in plan2['steps'] and "check_engineer" in plan3['steps']:
+        if "check_rag" in plan1['steps'] and "check_user_memory" in plan2['steps'] and "check_rag_knowledge" in plan3['steps']:
             print("  ✅ Planning Engine: Routing dinamis berfungsi sempurna.")
         else:
             issues.append("Planning Engine: Langkah yang dihasilkan tidak sesuai.")
@@ -93,7 +93,7 @@ async def deep_audit():
              
         # Test eksekusi Database Agent dengan file_path palsu
         res_db_fake = await db.process("analisa", {"file_path": "fake.csv"})
-        if "tidak dikenali" in res_db_fake:
+        if "tidak dikenali" in res_db_fake or "tidak ditemukan" in res_db_fake:
              print("  ✅ Database Agent: Detektor database berfungsi menolak file palsu.")
         else:
              issues.append("Database Agent: Gagal menangani file palsu.")

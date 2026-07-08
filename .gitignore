@@ -11,3 +11,9 @@ out/
 .vercel/
 .vscode/
 .idea/
+.sandbox/
+chroma_db/
+backend/chroma_db/
+*.db
+*.sqlite3
+desktop/src-tauri/target/

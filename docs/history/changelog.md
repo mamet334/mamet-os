@@ -6,6 +6,106 @@ Ini adalah bagian dari prinsip *Self-Evolving*, di mana setiap perubahan struktu
 
 ---
 
+## [v3.0.0-alpha.1] - 2026-07-08
+
+### 🚀 Implementasi Spesifikasi V3 (Pilar E: Onboarding & UI)
+
+**1. Sistem Autentikasi (Backend)**
+- **File Dibuat/Dimodifikasi**: `backend/auth/auth_handler.py`, `backend/main.py`
+- Membangun modul *handler* menggunakan **SQLite**, enkripsi sandi **bcrypt**, dan **JWT (JSON Web Token)**.
+- Mengekspos endpoint baru `/api/register` dan `/api/login` untuk mengunci dan memisahkan identitas pengguna secara terisolasi.
+- Menambahkan endpoint `/api/status` untuk menyuplai data metrik kesehatan sistem secara *real-time* ke *dashboard* Svelte.
+
+**2. Layar Login & Dashboard Awal (Frontend)**
+- **File Dibuat**: `desktop/src/routes/+page.svelte`, `desktop/src/routes/dashboard/+page.svelte`
+- Merestrukturisasi *routing* SvelteKit. Halaman utama (root) kini disetel sebagai **Layar Login**.
+- Halaman **Dashboard Awal** dibuat untuk menampilkan status sistem (Koneksi Kernel, AI Provider, Dokumen RAG, Fakta Memori, dan status Budget AI).
+- Mengamankan aliran sesi dengan memanfaatkan `localStorage` untuk menampung JWT.
+
+**3. Credit Berjalan (Onboarding Dramatis)**
+- **File Dibuat**: `desktop/src/routes/credit/+page.svelte`, `desktop/static/credit.txt`
+- Mengimplementasikan animasi teks bergulir (*cinematic text crawl*) menggunakan transisi murni Svelte dan CSS.
+- Narasi (filosofi, tutorial 3 Kolom, pesan warisan) ditarik dari file statis eksternal (`credit.txt`) sehingga pengguna dapat mengubah narasinya sendiri tanpa memodifikasi kode UI.
+- Aplikasi ruang kerja "3 Kolom" dipindahkan dengan aman dari direktori utama (root) menuju `desktop/src/routes/workspace/+page.svelte`.
+
+### 🛡️ Audit Fungsionalitas Pilar E (Backend)
+
+**1. Temuan Masalah pada Endpoint Status (`/api/status`)**
+- Saat pengujian (`audit_pilar_e.py`), endpoint utama pendaftaran dan login berhasil memproduksi dan memvalidasi JWT. Namun, panggilan ke `/api/status` memicu *crash* internal (Status 500) dengan pesan: `ModuleNotFoundError: No module named 'config'`.
+- **Akar Masalah**: *Backend* berusaha mengimpor `ProviderConfig` dari lintasan yang tidak ada di dalam arsitektur sistem saat membaca status *AI Provider* yang aktif.
+
+**2. Perbaikan Kode (Routing API)**
+- **File Dimodifikasi**: `backend/main.py`
+- Menghapus logika pemanggilan modul `config` fiktif.
+- Menggantinya dengan memanggil `ProviderRouter` secara langsung dari `ai.provider_router` untuk mengekstrak nama model bahasa aktif.
+- **Kode yang digunakan**:
+  ```python
+  from ai.provider_router import ProviderRouter
+  router = ProviderRouter(email)
+  provider = router.get_active_provider()
+  provider_name = provider.name if provider else "Tidak ada"
+  ```
+- **Status Akhir**: Metrik *Dashboard* (Kernel, Dokumen RAG, Fakta Memori, *Budget* AI, dan Status *Backup*) berhasil ditarik sempurna dengan respons kode 200 OK. Aplikasi 100% aman memblokir akses pengguna tak berizin (401 Unauthorized) pada sesi login.
+
+### 🛡️ Temuan Tambahan (Frontend Svelte)
+
+**1. Bug Layar Kosong (Blank Screen) Pasca Login**
+- Saat uji coba secara nyata melalui peramban (*browser*), setelah pengguna berhasil login, *Dashboard Awal* gagal dimuat (layar kosong) akibat galat pada sisi klien (*Client-side Error*): `TypeError: can't access property "toLocaleString", $.get(...).budget.total_cost is undefined`.
+- **Akar Masalah**: Ketidakcocokan antara nama variabel yang dikirimkan oleh API FastAPI dengan yang dibaca oleh *Frontend* Svelte. Svelte berusaha memanggil `total_cost` dan `monthly_cap`, padahal respons `UsageTracker` dari Backend secara aktual mengirimkan data dengan skema `total_budget_used` dan `total_budget_cap`.
+
+**2. Resolusi Kode (Svelte UI)**
+- **File Dimodifikasi**: `desktop/src/routes/dashboard/+page.svelte`
+- Menyesuaikan penamaan variabel pada blok render UI agar selaras dengan skema JSON dari API (`total_budget_used` dan `total_budget_cap`).
+- Menyuntikkan lapisan keselamatan tambahan berupa operator validasi absolut (`!== undefined`) sebelum mengeksekusi format angka `toLocaleString('id-ID')`. Upaya pencegahan ini bertujuan meredam potensi UI lumpuh seandainya *Backend* mengalami kegagalan transmisi nominal di masa depan.
+
+**3. Pembekuan Akhir Animasi Credit Berjalan**
+- **File Dimodifikasi**: `desktop/src/routes/credit/+page.svelte`
+- Mengembalikan durasi animasi (*crawl*) ke statis (`40s`) agar tidak terasa terlalu lambat.
+- Mengubah algoritma *keyframes* CSS agar teks tidak bergulir hingga hilang (`opacity: 0` pada `-200vh`). Animasi kini dikunci (`forwards`) untuk berhenti secara permanen menggunakan formula matematis absolut: `transform: translateY(calc(-100% + 100vh))`. Dipadukan dengan bantalan bawah (*padding-bottom*) sebesar `50vh`, teks akan secara mutlak dan sempurna terkunci tepat di tengah layar berapapun tinggi halamannya.
+- **Penyelesaian Bug Pemotongan Teks**: Menambahkan utilitas `items-start` pada *parent div* Flexbox (Tailwind). Sebelumnya, teks terpotong sangat jauh dari akhir karena tinggi komponen dipaksa ditarik meregang (*stretch*) menyamai tinggi layar induk (`h-full`), sehingga persentase perhitungan pergerakan 100% meleset. Teks sekarang berhasil digulir dari awal sampai kalimat paling akhir.
+
+**4. Refaktor Antarmuka Workspace (Panel Sidebar & Tampilan 1-Kolom)**
+- **File Dimodifikasi**: `desktop/src/routes/workspace/+page.svelte`
+- Menghapus tata letak *grid* 3-kolom simultan yang tadinya membuat layar terasa penuh sesak.
+- Mengimplementasikan navigasi **Panel Samping (Sidebar)** permanen di sebelah kiri yang menampung tombol pilihan untuk masuk ke masing-masing pilar: Pencarian Cepat, Asisten Pribadi, Engineer, dan Pengaturan.
+- Panel *Dashboard/Settings* yang sebelumnya menggunakan *Overlay Modal* telah diintegrasikan langsung sebagai salah satu rute di kolom utama.
+- Layar obrolan (*Chat Area*) kini memiliki **1 Kolom Penuh** (mengambil seluruh sisa ruang layar). Hal ini memberikan ruang baca dan penulisan (*textarea*) yang jauh lebih luas, lega, dan nyaman di mata pengguna.
+- **Penyelesaian Bug (Stuck Loading Tab Pengaturan):** Memperbaiki respons skema JSON pada modul *budget* di Svelte. Sebelumnya tab Pengaturan macet akibat mencoba membaca properti `tokens_in` yang tidak disediakan oleh API `get_budget_status()`. Variabel tersebut telah diubah menjadi kalkulasi `remaining` dan `status` sesuai respons API.
+
+---
+
+## [v0.6.0] - 2026-07-08
+
+### 🚀 Integrasi Fase 4 (Ekspansi Lego & Modul Dinamis)
+
+**1. Arsitektur Dynamic Loading (Lego Registry)**
+- **File Dimodifikasi**: `backend/lego_modules/lego_registry.py`
+- Merombak `LegoRegistry` dengan menambahkan metode `load_plugins()`. Menggunakan modul bawaan Python (`importlib.util` dan `inspect`) untuk memindai direktori plugin secara dinamis, mengekstrak kelas yang merupakan turunan dari `LegoModule`, lalu menginisialisasi dan mendaftarkannya secara otomatis tanpa perlu registrasi manual (*hardcode*).
+
+**2. Pengikatan Pemuatan Modul di Inti Sistem**
+- **File Dimodifikasi**: `backend/orchestrator/evidence_collector.py`
+- Menanamkan pemanggilan `load_plugins()` saat `LegoRegistry` diinisialisasi dalam `EvidenceCollector`. Direktori target disetel secara absolut ke `backend/custom_modules/`. Dengan demikian, semua modul kustom langsung aktif dan dapat diakses oleh orkestrator.
+
+**3. Pembuatan Skrip Uji Coba & Modul Bukti Konsep (PoC)**
+- **File Dibuat**: `backend/custom_modules/hello_lego.py` & `backend/test_lego.py`
+- Membuat modul *dummy* `HelloLego` untuk memverifikasi bahwa registrasi dinamis berfungsi sempurna. Pengujian terbukti berhasil mendeteksi dan memuat modul tanpa error, menegaskan kapabilitas penuh dari arsitektur *Plug-and-Play*.
+
+### 🛡️ Audit Keseluruhan (End-to-End System Audit)
+
+**1. Temuan Masalah pada Skrip Audit (`deep_audit.py`)**
+- Saat melakukan audit ulang keseluruhan pasca Ekspansi Lego, ditemukan pesan kegagalan palsu (*false negatives*) pada dua komponen:
+  1. **Planning Engine**: Dilaporkan "Langkah yang dihasilkan tidak sesuai".
+  2. **Database Agent**: Dilaporkan "Gagal menangani file palsu".
+
+**2. Perbaikan Skrip Audit Kedaluwarsa**
+- **File Dimodifikasi**: `deep_audit.py`
+- **Detail Perbaikan**:
+  - *Planning Engine*: Mengubah parameter ekspektasi langkah Kolom 3 dari `"check_engineer"` menjadi `"check_rag_knowledge"`. Hal ini disesuaikan karena arsitektur *Planning Engine* yang baru telah di-*update* untuk menggunakan `check_rag_knowledge` sebelum memanggil Engineer.
+  - *Database Agent*: Menambahkan kondisi untuk menerima tangkapan *error* `"tidak ditemukan"` pada hasil respons saat mendeteksi *file path* palsu. *Database Agent* sebenarnya berfungsi sempurna mencegah file palsu dengan melempar `FileNotFoundError`, namun skrip audit sebelumnya terlalu kaku dan hanya mencari kalimat spesifik `"tidak dikenali"`.
+- **Status Akhir**: Skrip audit berhasil berjalan 100% tanpa menemukan *error* pada alur *Planning*, *Decision*, *Evidence Collection*, *Agents*, maupun *Lego Registry*. Sistem dikonfirmasi sehat.
+
+---
+
 ## [v0.5.0] - 2026-07-07
 
 ### 🚀 Integrasi Fase 3 (Sub-Agent & Database Detector)

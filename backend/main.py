@@ -109,5 +109,78 @@ async def execute_rollback(req: RollbackRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# ================= AUTHENTICATION & DASHBOARD ================= #
+
+class AuthRequest(BaseModel):
+    email: str
+    password: str
+
+@app.post("/api/register")
+async def register(req: AuthRequest):
+    from auth.auth_handler import AuthHandler
+    handler = AuthHandler()
+    success = handler.register_user(req.email, req.password)
+    if not success:
+        raise HTTPException(status_code=400, detail="Email sudah terdaftar.")
+    token = handler.create_access_token({"sub": req.email})
+    return {"token": token, "message": "Pendaftaran berhasil"}
+
+@app.post("/api/login")
+async def login(req: AuthRequest):
+    from auth.auth_handler import AuthHandler
+    handler = AuthHandler()
+    if not handler.verify_user(req.email, req.password):
+        raise HTTPException(status_code=401, detail="Email atau password salah.")
+    token = handler.create_access_token({"sub": req.email})
+    return {"token": token, "email": req.email}
+
+@app.get("/api/status")
+async def get_system_status(email: str = "default"):
+    """Mengembalikan status sistem untuk Dashboard Awal."""
+    try:
+        # Provider aktif
+        from ai.provider_router import ProviderRouter
+        router = ProviderRouter(email)
+        provider = router.get_active_provider()
+        provider_name = provider.name if provider else "Tidak ada"
+        
+        # RAG Status
+        try:
+            from rag.rag_engine import RAGEngine
+            rag = RAGEngine()
+            doc_count = len(rag.collection.get(include=['metadatas'])['ids'])
+        except:
+            doc_count = 0
+            
+        # User Memory Status
+        from memory.user_memory import UserMemory
+        memory = UserMemory(email)
+        stats = memory.get_stats()
+        fact_count = stats.get("total_facts", 0)
+        
+        # Budget
+        from ai.usage_tracker import UsageTracker
+        tracker = UsageTracker(email)
+        budget = tracker.get_budget_status()
+        
+        # Backups
+        from engineer.sandbox import EngineerSandbox
+        sandbox = EngineerSandbox()
+        backup_count = len(sandbox.list_backups())
+        
+        return {
+            "kernel": "Tersambung",
+            "ai_provider": provider_name,
+            "rag": {"docs": doc_count},
+            "memory": {"facts": fact_count},
+            "engineer": "Siap",
+            "backup": {"count": backup_count},
+            "budget": budget
+        }
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

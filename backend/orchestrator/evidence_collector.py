@@ -20,6 +20,8 @@ class EvidenceCollector:
         # Tambahkan Lego Registry
         from lego_modules.lego_registry import LegoRegistry
         self.lego_registry = LegoRegistry()
+        plugins_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "custom_modules")
+        self.lego_registry.load_plugins(plugins_dir)
     
     def _register_default_sources(self):
         """Daftarkan sumber evidence default."""

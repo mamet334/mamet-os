@@ -156,7 +156,7 @@ class EngineerSandbox:
             return {"status": "error", "message": "Tidak ada file untuk di-approve."}
             
         # Backup live sebelum diubah
-        self._create_backup()
+        self.create_backup()
         
         # Hapus live lama? TIDAK. Live adalah root!
         # Kita hanya meng-copy file dari review ke live (timpa).
@@ -190,8 +190,8 @@ class EngineerSandbox:
         
         return {"status": "success", "message": "Perubahan ditolak, workspace dibersihkan"}
     
-    def _create_backup(self) -> str:
-        """Buat backup live sebelum perubahan."""
+    def create_backup(self) -> str:
+        """Buat backup live sebelum perubahan atau secara manual."""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         backup_name = f"backup_{timestamp}.zip"
         backup_path = self.rollback_dir / backup_name
@@ -257,7 +257,7 @@ class EngineerSandbox:
             return {"status": "error", "message": f"Backup tidak ditemukan: {backup_filename}"}
         
         # Backup live saat ini dulu
-        self._create_backup()
+        self.create_backup()
         
         # Ekstrak backup ke live (akan menimpa file yang ada dengan versi lama)
         # Catatan: file yang BARU dibuat sejak backup tidak akan terhapus oleh zip extract, 
