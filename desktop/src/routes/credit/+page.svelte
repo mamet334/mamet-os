@@ -72,9 +72,9 @@
           {:else if line.startsWith('---')}
             <div class="w-24 h-px bg-white/30 mx-auto my-8"></div>
           {:else if line.match(/^[A-Z\s\?\,]+$/)}
-            <h2 class="text-2xl font-bold tracking-widest text-blue-300 mt-12 mb-6">{line}</h2>
+            <h2 class="text-2xl font-bold tracking-widest text-mamet-cyan mt-12 mb-6 drop-shadow-[0_0_10px_rgba(0,219,233,0.5)]">{line}</h2>
           {:else}
-            <p class="text-xl leading-relaxed text-gray-300">{line}</p>
+            <p class="text-xl leading-relaxed text-slate-300">{line}</p>
           {/if}
         {/each}
       </div>

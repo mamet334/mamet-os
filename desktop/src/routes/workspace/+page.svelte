@@ -194,12 +194,12 @@
   }
 </script>
 
-<div class="flex h-screen bg-[#09090b] text-slate-200 font-sans">
+<div class="flex h-screen bg-transparent text-slate-200 font-sans overflow-hidden">
   
   <!-- SIDEBAR (Panel Kiri) -->
-  <aside class="w-64 bg-[#0f0f13] border-r border-white/10 flex flex-col shrink-0 z-20">
+  <aside class="w-64 glass-panel rounded-none border-y-0 border-l-0 flex flex-col shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.2)]">
     <div class="p-5 border-b border-white/5 flex items-center gap-3">
-      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-mamet-cyan to-mamet-purple flex items-center justify-center font-bold text-white shadow-lg shadow-mamet-cyan/30">
         M
       </div>
       <div>
@@ -213,7 +213,7 @@
       {#each columns as col}
         <button
           onclick={() => activeColumn = col.id}
-          class="w-full text-left flex items-center gap-3 px-3 py-3 rounded-lg transition-colors {activeColumn === col.id ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'}"
+          class="w-full text-left flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-300 {activeColumn === col.id ? 'bg-mamet-cyan/10 text-mamet-cyan border border-mamet-cyan/30 cyan-glow' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'}"
         >
           <span class="text-xl">{col.icon}</span>
           <div>
@@ -227,7 +227,7 @@
       
       <button
         onclick={openDashboard}
-        class="w-full text-left flex items-center gap-3 px-3 py-3 rounded-lg transition-colors {activeColumn === 'setting' ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'}"
+        class="w-full text-left flex items-center gap-3 px-3 py-3 rounded-lg transition-all duration-300 {activeColumn === 'setting' ? 'bg-mamet-purple/10 text-mamet-purple border border-mamet-purple/30 shadow-[0_0_15px_rgba(233,179,255,0.3)]' : 'text-slate-400 hover:bg-white/5 hover:text-slate-200 border border-transparent'}"
       >
         <span class="text-xl">⚙️</span>
         <div>
@@ -248,14 +248,14 @@
             placeholder="sk-or-v1-..."
             class="bg-transparent text-xs text-white focus:outline-none w-full placeholder-slate-600"
           />
-          <button onclick={saveApiKey} class="text-xs text-indigo-400 hover:text-indigo-300 font-medium">Save</button>
+          <button onclick={saveApiKey} class="text-xs text-mamet-cyan hover:text-white font-medium transition-colors">Save</button>
         </div>
       </div>
     </div>
   </aside>
 
   <!-- MAIN AREA (Kolom Utama) -->
-  <main class="flex-1 flex flex-col overflow-hidden relative bg-[#09090b]">
+  <main class="flex-1 flex flex-col overflow-hidden relative bg-transparent">
     
     {#if activeColumn !== 'setting'}
       <!-- MODE CHAT -->
@@ -263,7 +263,7 @@
         {#if activeColumn === col.id}
           <section class="flex-1 flex flex-col w-full h-full animate-in fade-in duration-300">
             <!-- Header Kolom Aktif -->
-            <div class="px-6 py-4 border-b border-white/5 bg-[#121217] flex justify-between items-center z-10 shadow-sm shrink-0">
+            <div class="px-6 py-4 border-b border-white/5 bg-black/20 backdrop-blur-md flex justify-between items-center z-10 shadow-sm shrink-0">
               <div class="flex items-center gap-3">
                 <span class="text-2xl">{col.icon}</span>
                 <div>
@@ -328,10 +328,10 @@
 
               {#each messages[col.id] as msg}
                 <div class="flex flex-col {msg.role === 'user' ? 'items-end' : 'items-start'}">
-                  <div class="max-w-[85%] md:max-w-[75%] p-4 rounded-2xl text-[15px] leading-relaxed shadow-sm
+                  <div class="max-w-[85%] md:max-w-[75%] p-4 rounded-2xl text-[15px] leading-relaxed shadow-sm backdrop-blur-sm
                     {msg.role === 'user' 
-                      ? 'bg-indigo-600 text-white rounded-tr-sm' 
-                      : 'bg-[#18181b] border border-white/10 text-slate-200 rounded-tl-sm'}">
+                      ? 'bg-mamet-cyan/20 border border-mamet-cyan/30 text-mamet-cyan shadow-[0_0_15px_rgba(0,219,233,0.15)] rounded-tr-sm' 
+                      : 'bg-white/5 border border-white/10 text-slate-200 rounded-tl-sm'}">
                     <div class="whitespace-pre-wrap font-mono text-[14px]">{msg.content}</div>
                     
                     {#if msg.requires_approval && col.id === "kolom3"}
@@ -368,9 +368,9 @@
             </div>
 
             <!-- Input Area -->
-            <div class="p-4 border-t border-white/5 bg-[#121217] shrink-0">
+            <div class="p-4 border-t border-white/5 bg-black/30 backdrop-blur-md shrink-0">
               <div class="max-w-4xl mx-auto">
-                <div class="relative flex items-end gap-2 bg-[#09090b] border border-white/10 p-2 rounded-xl focus-within:border-indigo-500/50 focus-within:ring-1 focus-within:ring-indigo-500/50 transition-all shadow-inner">
+                <div class="relative flex items-end gap-2 bg-white/5 border border-white/10 p-2 rounded-2xl focus-within:border-mamet-cyan/50 focus-within:ring-1 focus-within:ring-mamet-cyan/50 transition-all shadow-inner">
                   <textarea
                     bind:value={inputs[col.id]}
                     onkeydown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(col.id); } }}
@@ -382,7 +382,7 @@
                     aria-label="Kirim pesan"
                     onclick={() => handleSend(col.id)}
                     disabled={loadings[col.id] || !inputs[col.id].trim()}
-                    class="p-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white transition-colors shrink-0 m-0.5"
+                    class="glass-btn-primary shrink-0 m-0.5 p-3 rounded-xl disabled:bg-white/5 disabled:border-white/10 disabled:text-slate-500 disabled:shadow-none"
                   >
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                   </button>
@@ -404,7 +404,7 @@
           
           <div class="border-b border-white/10 pb-6 mb-8">
             <h2 class="text-2xl font-bold text-white flex items-center gap-3">
-              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-indigo-400"><path d="M12 20v-6M6 20V10M18 20V4"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-mamet-purple"><path d="M12 20v-6M6 20V10M18 20V4"/></svg>
               Command Center
             </h2>
             <p class="text-sm text-slate-400 mt-2">Pusat kendali pengaturan sistem, anggaran AI, dan cadangan pemulihan MAMET OS.</p>
@@ -424,9 +424,9 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {#each Object.entries(budgetData.providers) as [provider, data]}
                     {@const d = data as any}
-                    <div class="bg-[#1a1a1f] p-5 rounded-xl border border-white/5 relative overflow-hidden shadow-sm">
-                      <div class="absolute bottom-0 left-0 h-1 bg-indigo-600/30 w-full">
-                        <div class="h-full {d.status === 'exceeded' ? 'bg-rose-500' : 'bg-indigo-500'} transition-all duration-1000" style="width: {d.percentage}%"></div>
+                    <div class="glass-panel p-5 relative overflow-hidden group">
+                      <div class="absolute bottom-0 left-0 h-1 bg-white/5 w-full">
+                        <div class="h-full {d.status === 'exceeded' ? 'bg-mamet-amber' : 'bg-mamet-cyan'} transition-all duration-1000 cyan-glow" style="width: {d.percentage}%"></div>
                       </div>
                       
                       <div class="flex justify-between items-start mb-2">
@@ -467,9 +467,9 @@
                 🛡️ Sistem Keamanan & Rollback
               </h3>
               
-              <div class="bg-[#1a1a1f] rounded-xl border border-white/5 overflow-hidden shadow-sm">
+              <div class="glass-panel overflow-hidden">
                 <div class="p-5 bg-black/20 border-b border-white/5 flex gap-4">
-                  <div class="text-indigo-400 bg-indigo-400/10 p-2 rounded-lg h-fit">
+                  <div class="text-mamet-cyan bg-mamet-cyan/10 p-2 rounded-lg h-fit border border-mamet-cyan/20">
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                   </div>
                   <p class="text-sm text-slate-400 leading-relaxed">
