@@ -49,6 +49,15 @@
   let budgetData = $state<any>(null);
   let backupsData = $state<any[]>([]);
   let loadingDashboard = $state(false);
+  
+  // State untuk Pilar G
+  let systemStatus = $state<any>(null);
+  let flashdiskDrives = $state<string[]>([]);
+  let backupFlashdiskLoading = $state(false);
+
+  // State untuk Pilar F (Google Drive & Legacy)
+  let legacyStatus = $state<any>(null);
+  let legacyActivating = $state(false);
 
   onMount(() => {
     // Coba ambil API key dari localStorage
@@ -172,10 +181,72 @@
       const rRes = await fetch(`http://127.0.0.1:8000/api/backups`);
       const rData = await rRes.json();
       backupsData = rData.backups || [];
+      
+      // Ambil status sistem (untuk cek database)
+      const sRes = await fetch(`http://127.0.0.1:8000/api/status`);
+      systemStatus = await sRes.json();
+      
+      // Ambil flashdisk
+      const fRes = await fetch(`http://127.0.0.1:8000/api/flashdisk/status`);
+      const fData = await fRes.json();
+      flashdiskDrives = fData.drives || [];
+
+      // Ambil status Google Drive / Legacy (F1)
+      try {
+        const lRes = await fetch(`http://127.0.0.1:8000/api/legacy/status?email=default`);
+        legacyStatus = await lRes.json();
+      } catch (e) {
+        console.error("Gagal load legacy status", e);
+      }
     } catch (e) {
       console.error("Gagal memuat dashboard:", e);
     } finally {
       loadingDashboard = false;
+    }
+  }
+
+  async function backupToFlashdisk() {
+    if (flashdiskDrives.length === 0) return;
+    const target = flashdiskDrives[0]; 
+    backupFlashdiskLoading = true;
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/flashdisk/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_path: target })
+      });
+      const data = await res.json();
+      if(data.status === "success") {
+        alert("✅ " + data.message);
+      } else {
+        alert("❌ " + data.message);
+      }
+    } catch(e) {
+      alert("❌ Gagal backup ke flashdisk.");
+    } finally {
+      backupFlashdiskLoading = false;
+    }
+  }
+
+  async function activateLegacy() {
+    legacyActivating = true;
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/legacy/activate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: "default" })
+      });
+      const data = await res.json();
+      if (data.status === "success") {
+        alert("✅ " + data.message);
+        openDashboard();
+      } else {
+        alert("❌ " + data.message);
+      }
+    } catch (e) {
+      alert("❌ Terjadi kesalahan saat mengaktifkan warisan digital.");
+    } finally {
+      legacyActivating = false;
     }
   }
 
@@ -467,6 +538,125 @@
                 </div>
               {/if}
             </section>
+            
+            <!-- SECTION: HEALTH & RECOVERY (PILAR G) -->
+            <section class="pt-4">
+              <h3 class="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider flex items-center gap-2">
+                🏥 Health Monitoring & Recovery
+              </h3>
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Database Status (G2) -->
+                <div class="glass-panel p-5">
+                  <div class="flex justify-between items-center mb-3">
+                    <h4 class="font-bold text-white">Status Database</h4>
+                    {#if systemStatus?.memory?.database === 'healthy'}
+                      <span class="text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/20">Sehat</span>
+                    {:else if systemStatus?.memory?.database === 'corrupt'}
+                      <span class="text-xs px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/20 animate-pulse">Rusak</span>
+                    {:else}
+                      <span class="text-xs px-2.5 py-1 rounded-full bg-slate-500/20 text-slate-400 border border-slate-500/20">Loading...</span>
+                    {/if}
+                  </div>
+                  <p class="text-xs text-slate-400 mb-4">Mengecek integritas memory.db saat booting.</p>
+                  
+                  {#if systemStatus?.memory?.database === 'corrupt'}
+                    <div class="text-rose-400 text-xs mt-3 font-semibold p-2 bg-rose-500/10 rounded">⚠️ Segera pulihkan dari file auto_backup_ di bawah!</div>
+                  {/if}
+                </div>
+                
+                <!-- Flashdisk Backup (G1) -->
+                <div class="glass-panel p-5">
+                  <div class="flex justify-between items-center mb-3">
+                    <h4 class="font-bold text-white">Backup Eksternal</h4>
+                    {#if flashdiskDrives.length > 0}
+                      <span class="text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/20">Terdeteksi</span>
+                    {:else}
+                      <span class="text-xs px-2.5 py-1 rounded-full bg-slate-500/20 text-slate-400 border border-slate-500/20">Tidak Ada</span>
+                    {/if}
+                  </div>
+                  <p class="text-xs text-slate-400 mb-4">Cadangkan MAMET OS ke flashdisk (Robocopy/Rsync).</p>
+                  
+                  <button 
+                    onclick={backupToFlashdisk} 
+                    disabled={flashdiskDrives.length === 0 || backupFlashdiskLoading}
+                    class="w-full py-2 rounded-lg text-sm font-semibold transition-all {flashdiskDrives.length > 0 ? 'bg-mamet-cyan/20 text-mamet-cyan border border-mamet-cyan/30 hover:bg-mamet-cyan/30' : 'bg-white/5 text-slate-500 border border-white/10'}"
+                  >
+                    {#if backupFlashdiskLoading}
+                      Sedang mencadangkan...
+                    {:else if flashdiskDrives.length > 0}
+                      💾 Backup ke {flashdiskDrives[0]}
+                    {:else}
+                      💾 Colokkan Flashdisk
+                    {/if}
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <!-- SECTION: CLOUD SYNC & LEGACY WIZARD (PILAR F) -->
+            <section class="pt-4">
+              <h3 class="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider flex items-center gap-2">
+                ☁️ Cloud Sync & Legacy Wizard
+              </h3>
+              
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Legacy Wizard (F2) -->
+                <div class="glass-panel p-5">
+                  <div class="flex justify-between items-center mb-3">
+                    <h4 class="font-bold text-white">Google Drive Backup</h4>
+                    {#if legacyStatus?.status === 'success' || legacyStatus?.status === 'pending' || legacyStatus?.status === 'failed'}
+                      <span class="text-xs px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/20">Aktif</span>
+                    {:else}
+                      <span class="text-xs px-2.5 py-1 rounded-full bg-slate-500/20 text-slate-400 border border-slate-500/20">Belum Aktif</span>
+                    {/if}
+                  </div>
+                  <p class="text-xs text-slate-400 mb-4">Aktifkan sinkronisasi ke Google Drive untuk mencadangkan data secara cloud-based.</p>
+                  
+                  <button 
+                    onclick={activateLegacy} 
+                    disabled={legacyActivating || legacyStatus?.status === 'success' || legacyStatus?.status === 'pending' || legacyStatus?.status === 'failed'}
+                    class="w-full py-2 rounded-lg text-sm font-semibold transition-all {(legacyStatus?.status !== 'unconfigured' && legacyStatus?.status !== 'error' && legacyStatus != null) ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 opacity-50 cursor-not-allowed' : 'bg-mamet-cyan/20 text-mamet-cyan border border-mamet-cyan/30 hover:bg-mamet-cyan/30'}"
+                  >
+                    {#if legacyActivating}
+                      Menghubungkan...
+                    {:else if (legacyStatus?.status !== 'unconfigured' && legacyStatus?.status !== 'error' && legacyStatus != null)}
+                      ✅ Warisan Digital Aktif
+                    {:else}
+                      🛡️ Aktifkan Warisan Digital
+                    {/if}
+                  </button>
+                </div>
+                
+                <!-- Status Sinkronisasi (F1) -->
+                <div class="glass-panel p-5">
+                  <h4 class="font-bold text-white mb-3">Status Sinkronisasi</h4>
+                  <div class="flex flex-col gap-2">
+                    {#if legacyStatus?.status === 'unconfigured' || legacyStatus == null}
+                      <div class="text-sm text-slate-500 bg-white/5 p-3 rounded border border-white/10">
+                        Anda belum mengaktifkan fitur ini.
+                      </div>
+                    {:else if legacyStatus?.status === 'success'}
+                      <div class="text-sm text-emerald-400 bg-emerald-500/10 p-3 rounded border border-emerald-500/20 flex items-center gap-2">
+                        ☁️ Terakhir: {legacyStatus?.time ? new Date(legacyStatus.time).toLocaleString('id-ID') : 'Belum diketahui'}
+                      </div>
+                    {:else if legacyStatus?.status === 'failed'}
+                      <div class="text-sm text-rose-400 bg-rose-500/10 p-3 rounded border border-rose-500/20 flex items-center gap-2">
+                        ⚠️ Sinkron gagal: {legacyStatus?.message}
+                      </div>
+                    {:else if legacyStatus?.status === 'pending'}
+                      <div class="text-sm text-amber-400 bg-amber-500/10 p-3 rounded border border-amber-500/20 flex items-center gap-2">
+                        ⏳ Menunggu backup otomatis malam ini...
+                      </div>
+                    {:else}
+                      <div class="text-sm text-slate-500 bg-white/5 p-3 rounded border border-white/10 flex items-center gap-2">
+                        Memuat status...
+                      </div>
+                    {/if}
+                  </div>
+                </div>
+              </div>
+            </section>
 
             <!-- SECTION: ROLLBACK (SANDBOX) -->
             <section class="pt-4">
@@ -480,7 +670,7 @@
                     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
                   </div>
                   <p class="text-sm text-slate-400 leading-relaxed">
-                    Setiap kali Engineer (Kolom 3) mengubah kode sistem, MAMET OS otomatis membuat file ZIP dari kondisi terakhir. 
+                    Setiap kali Engineer mengubah kode sistem, MAMET OS membuat file ZIP backup. Sistem juga membuat zip harian (auto_backup) untuk database User Memory.
                     Anda dapat memutar waktu kembali ke versi sebelum kerusakan terjadi.
                   </p>
                 </div>

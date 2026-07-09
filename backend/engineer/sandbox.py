@@ -256,14 +256,69 @@ class EngineerSandbox:
         if not backup_path.exists():
             return {"status": "error", "message": f"Backup tidak ditemukan: {backup_filename}"}
         
-        # Backup live saat ini dulu
-        self.create_backup()
+        # Backup live saat ini dulu (opsional, untuk amannya jika ini backup kode)
+        if not backup_filename.startswith("auto_backup_"):
+            self.create_backup()
         
-        # Ekstrak backup ke live (akan menimpa file yang ada dengan versi lama)
-        # Catatan: file yang BARU dibuat sejak backup tidak akan terhapus oleh zip extract, 
-        # tapi file lama akan kembali ke versi semula.
-        self.live_dir.mkdir(exist_ok=True)
-        with zipfile.ZipFile(backup_path, 'r') as zf:
-            zf.extractall(self.live_dir)
+        # Ekstrak backup
+        if backup_filename.startswith("auto_backup_"):
+            # Ini adalah backup database (Pilar G3/G4)
+            target_dir = Path(os.path.expanduser("~")) / ".mamet"
+            target_dir.mkdir(parents=True, exist_ok=True)
+            with zipfile.ZipFile(backup_path, 'r') as zf:
+                zf.extractall(target_dir)
+            return {"status": "success", "message": f"Database berhasil dipulihkan dari {backup_filename}"}
+        else:
+            # Ini adalah backup kode Engineer
+            self.live_dir.mkdir(exist_ok=True)
+            with zipfile.ZipFile(backup_path, 'r') as zf:
+                zf.extractall(self.live_dir)
+            return {"status": "success", "message": f"Rollback sistem ke {backup_filename} berhasil"}
+
+    def daily_auto_backup(self, user_id: str = "default"):
+        """
+        Pilar G3: Auto-Backup Harian
+        Dijalankan saat idle. Folder memori pengguna di-zip.
+        """
+        user_dir = Path(os.path.expanduser("~")) / ".mamet" / user_id
+        if not user_dir.exists():
+            return
+            
+        # Cek apakah sudah ada backup hari ini (< 24 jam)
+        auto_backups = sorted(self.rollback_dir.glob("auto_backup_*.zip"), reverse=True)
+        if auto_backups:
+            last_backup = auto_backups[0]
+            if (datetime.now().timestamp() - last_backup.stat().st_mtime) < 86400:
+                return # Belum lewat 24 jam
+                
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_name = f"auto_backup_{timestamp}.zip"
+        backup_path = self.rollback_dir / backup_name
         
-        return {"status": "success", "message": f"Rollback ke {backup_filename} berhasil"}
+        with zipfile.ZipFile(backup_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for root, dirs, files in os.walk(user_dir):
+                for file in files:
+                    file_path = Path(root) / file
+                    try:
+                        zf.write(file_path, file_path.relative_to(user_dir.parent))
+                    except Exception:
+                        pass
+                        
+        size_kb = backup_path.stat().st_size / 1024
+        print(f"[AUTO-BACKUP] {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} — Sukses ({size_kb:.1f} KB).")
+        
+        # Retensi 7 backup terbaru
+        if len(auto_backups) >= 7:
+            for old in auto_backups[6:]:
+                try:
+                    old.unlink()
+                except:
+                    pass
+                    
+        # Pilar F: Otomatis sinkronisasi ke Google Drive jika aktif
+        try:
+            from engineer.google_drive_sync import GoogleDriveSync
+            sync = GoogleDriveSync(user_id=user_id)
+            sync.sync_to_cloud(str(backup_path))
+        except Exception as e:
+            print(f"[AUTO-BACKUP] Gagal sinkronisasi ke Google Drive: {e}")

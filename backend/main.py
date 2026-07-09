@@ -111,6 +111,69 @@ async def execute_rollback(req: RollbackRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+class FlashdiskBackupRequest(BaseModel):
+    target_path: str
+
+@app.get("/api/flashdisk/status")
+async def get_flashdisk_status():
+    """G1: Mendeteksi flashdisk yang tersambung."""
+    try:
+        from engineer.disk_detector import DiskDetector
+        drives = DiskDetector.get_removable_drives()
+        return {"drives": drives}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/flashdisk/backup")
+async def execute_flashdisk_backup(req: FlashdiskBackupRequest):
+    """G1: Melakukan sinkronisasi ke flashdisk menggunakan robocopy/rsync."""
+    import platform
+    import subprocess
+    import os
+    
+    source_dir = os.getcwd()
+    target_dir = os.path.join(req.target_path, "MametOS")
+    system = platform.system()
+    
+    try:
+        if system == "Windows":
+            # Robocopy mengembalikan exit code <= 7 untuk sukses dengan variasi (ada file baru, dsb)
+            cmd = ["robocopy", source_dir, target_dir, "/MIR", "/XD", "node_modules", "venv", ".git"]
+            process = subprocess.run(cmd, capture_output=True, text=True)
+            if process.returncode > 7:
+                raise Exception(f"Robocopy gagal: {process.stderr or process.stdout}")
+        else:
+            # Rsync
+            cmd = ["rsync", "-av", "--delete", "--exclude", "node_modules", "--exclude", "venv", "--exclude", ".git", f"{source_dir}/", f"{target_dir}/"]
+            process = subprocess.run(cmd, capture_output=True, text=True)
+            if process.returncode != 0:
+                raise Exception(f"Rsync gagal: {process.stderr}")
+                
+        return {"status": "success", "message": "Backup ke flashdisk berhasil selesai!"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/legacy/activate")
+def activate_legacy(req: AuthRequest):
+    """F2: Legacy Wizard OAuth Google Drive"""
+    try:
+        from engineer.google_drive_sync import GoogleDriveSync
+        sync = GoogleDriveSync(user_id=req.email)
+        res = sync.authenticate()
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/legacy/status")
+async def legacy_status(email: str = "default"):
+    """F1: Notifikasi Status Sinkronisasi Google Drive"""
+    try:
+        from engineer.google_drive_sync import GoogleDriveSync
+        sync = GoogleDriveSync(user_id=email)
+        return sync.get_sync_status()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # ================= AUTHENTICATION & DASHBOARD ================= #
 
 class AuthRequest(BaseModel):
@@ -160,6 +223,10 @@ async def get_system_status(email: str = "default"):
         stats = memory.get_stats()
         fact_count = stats.get("total_facts", 0)
         
+        # Pilar G2: Integrity Check di Dashboard
+        is_db_healthy = memory.check_integrity()
+        db_status = "healthy" if is_db_healthy else "corrupt"
+        
         # Budget
         from ai.usage_tracker import UsageTracker
         tracker = UsageTracker(email)
@@ -174,7 +241,7 @@ async def get_system_status(email: str = "default"):
             "kernel": "Tersambung",
             "ai_provider": provider_name,
             "rag": {"docs": doc_count},
-            "memory": {"facts": fact_count},
+            "memory": {"facts": fact_count, "database": db_status},
             "engineer": "Siap",
             "backup": {"count": backup_count},
             "budget": budget

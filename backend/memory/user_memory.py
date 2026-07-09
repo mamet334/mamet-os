@@ -100,6 +100,22 @@ class UserMemory:
             )
             conn.commit()
             print(f"[LEGACY] Mode Warisan Digital DINONAKTIFKAN.")
+            
+    def check_integrity(self) -> bool:
+        """
+        Pilar G2: Mendeteksi kerusakan database (memory.db).
+        Dipanggil saat booting atau cek status.
+        """
+        try:
+            with self._get_connection() as conn:
+                result = conn.execute("PRAGMA integrity_check;").fetchone()
+                if result and result[0].lower() == "ok":
+                    return True
+                print(f"[MEMORY-CRITICAL] Kerusakan database terdeteksi di {self.db_path}: {result[0]}")
+                return False
+        except Exception as e:
+            print(f"[MEMORY-CRITICAL] Gagal menjalankan integrity check: {e}")
+            return False
     
     def add_fact(self, fact: str, source: str = "conversation", confidence: float = 0.5, ttl_days: int = 30) -> int:
         """

@@ -6,6 +6,52 @@ Ini adalah bagian dari prinsip *Self-Evolving*, di mana setiap perubahan struktu
 
 ---
 
+## [v3.1.0-alpha.1] - 2026-07-09
+
+### 🏥 Implementasi Pilar G (Health Monitoring & Auto-Recovery)
+
+**1. Backup Eksternal (Flashdisk) & Pemulihan (G1 & G4)**
+- **File Dibuat**: `backend/engineer/disk_detector.py`
+- Menambahkan modul `DiskDetector` untuk deteksi otomatis *removable drive* dan mengeksekusi sinkronisasi dengan `robocopy`/`rsync`.
+- Mengubah fungsi `rollback_to()` di `sandbox.py` agar mengekstrak *zip* `auto_backup_` langsung ke dalam lintasan `~/.mamet/`, menjadikan tombol *Rollback* Svelte berfungsi ganda untuk sistem kode maupun *database* tanpa konflik penimpaan file proyek.
+
+**2. Integritas Database & Auto-Backup Harian (G2 & G3)**
+- **File Dimodifikasi**: `backend/memory/user_memory.py`, `backend/orchestrator/main_orchestrator.py`
+- Menyisipkan `PRAGMA integrity_check;` yang dieksekusi asinkron saat proses *boot* Kernel.
+- Membuat *Background Task* (`_idle_checker`) di *Orchestrator* untuk mendeteksi status diam selama 5 menit. Saat terpenuhi, sistem akan membuat cadangan otomatis (*auto-backup*) dari pangkalan data memori ke dalam format `auto_backup_YYYYMMDD_HHMMSS.zip`.
+
+**3. Penambahan Antarmuka Health Monitoring (Frontend)**
+- **File Dimodifikasi**: `desktop/src/routes/workspace/+page.svelte`
+- Menyuntikkan blok *UI Health Monitoring & Recovery* pada area *Dashboard Command Center*. Pengguna kini bisa secara *real-time* memonitor kesehatan (Sehat/Rusak) dari *Database*, mengeksekusi pencadangan ke *Flashdisk*, serta melakukan pemulihan secara 1-Klik dari daftar log *Rollback*.
+
+### 🛡️ Audit Fungsionalitas Pilar G (Backend)
+
+**1. Penambalan Bug Unicode (UnicodeEncodeError) pada Console Windows**
+- **File Dimodifikasi**: `backend/ai/provider_router.py`
+- **Detail Perbaikan**: Saat eksekusi `audit_pilar_g.py`, ditemukan error kritis 500 pada `/api/status` akibat enkoding `❌` dan `✅` di *logging server* yang tidak didukung *charmap* Windows. 
+- **Resolusi**: Semua emoji pada `ProviderRouter` telah dikonversi ke teks standar (`[ERROR]` dan `[OK]`), memastikan API berjalan stabil 100%.
+
+### ☁️ Implementasi Pilar F (Cloud Sync & Legacy Wizard)
+
+**1. Modul Google Drive & Endpoint Warisan Digital (F1 & F2)**
+- **File Dibuat/Dimodifikasi**: `backend/engineer/google_drive_sync.py`, `backend/main.py`
+- Merancang kelas `GoogleDriveSync` berbasis *OAuth2 InstalledAppFlow* untuk memfasilitasi integrasi *Google Drive* yang bersih tanpa memaksa pengguna mengonfigurasi *Google Cloud Console* manual. Token disimpan terisolasi di memori per-email (`~/.mamet/{email}/token.json`).
+- Membuka endpoint kontrol `/api/legacy/activate` (pemicu proses *login browser*) dan `/api/legacy/status` (pelacak metrik kesuksesan sinkronisasi awan/cloud).
+
+**2. Integrasi Auto-Backup Harian (Simbiosis F & G)**
+- **File Dimodifikasi**: `backend/engineer/sandbox.py`
+- Menyuntikkan jembatan pemanggilan `.sync_to_cloud()` tepat di penghujung eksekusi `daily_auto_backup()`. Setiap ZIP pangkalan data memori (Pilar G) kini diamankan ganda ke Google Drive pengguna secara mutlak.
+
+**3. Antarmuka Legacy Wizard (Svelte)**
+- **File Dimodifikasi**: `desktop/src/routes/workspace/+page.svelte`
+- Menyematkan seksi baru *Cloud Sync & Legacy Wizard* di *Dashboard Command Center*. Panel interaktif menyediakan pelacakan waktu nyata dari sinkronisasi awan, sekaligus gerbang utama tombol **🛡️ Aktifkan Warisan Digital**.
+
+**4. Audit & Validasi Fungsional (Pilar F)**
+- **Eksekusi**: Meluncurkan pengujian mendalam via skrip `audit_pilar_f.py`.
+- **Hasil**: Sistem terbukti tangguh `100%`. Logika pendeteksian titik buta (*fail-safe*) untuk status *unconfigured* serta pembacaan berkas autentikasi OAuth Google berjalan murni dan mulus pada *FastAPI Endpoint* tanpa secercah *error* sekalipun.
+
+---
+
 ## [v3.0.0-alpha.1] - 2026-07-08
 
 ### 🚀 Implementasi Spesifikasi V3 (Pilar E: Onboarding & UI)

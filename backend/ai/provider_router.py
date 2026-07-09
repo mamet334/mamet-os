@@ -72,9 +72,9 @@ class ProviderRouter:
             if name == "openrouter":
                 from ai.providers.openrouter_provider import OpenRouterProvider
                 self.providers[name] = OpenRouterProvider(api_key)
-                print(f"[ROUTER] ✅ Provider '{name}' siap")
+                print(f"[ROUTER] [OK] Provider '{name}' siap")
         except Exception as e:
-            print(f"[ROUTER] ❌ Gagal inisialisasi provider '{name}': {e}")
+            print(f"[ROUTER] [ERROR] Gagal inisialisasi provider '{name}': {e}")
     
     def add_provider(self, name: str, api_key: str, priority: int = 1):
         """Tambah provider baru."""

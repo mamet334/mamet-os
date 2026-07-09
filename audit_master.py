@@ -12,7 +12,7 @@ from ai.provider_router import ProviderRouter
 # Mock fungsi chat dari ProviderRouter agar tidak butuh koneksi internet
 def mock_chat(self, messages):
     print("\n" + "="*70)
-    print("🤖 --- [LLM MOCK CEGATAN] ---")
+    print("--- [LLM MOCK CEGATAN] ---")
     for msg in messages:
         if msg['role'] == 'system':
             print(f"[SYSTEM PROMPT]\n{msg['content']}\n")
@@ -54,9 +54,9 @@ async def run_audit():
     
     for case in test_cases:
         print(f"\n\n{'='*80}")
-        print(f"🚀 MENGUJI: {case['name']}")
-        print(f"💬 PESAN  : '{case['message']}'")
-        print(f"📁 KONTEKS: '{case['context']}'")
+        print(f"[TEST] MENGUJI: {case['name']}")
+        print(f"[MSG]  PESAN  : '{case['message']}'")
+        print(f"[DIR]  KONTEKS: '{case['context']}'")
         print(f"{'='*80}")
         
         # Eksekusi proses
@@ -67,7 +67,7 @@ async def run_audit():
             project_context=case['context'],
             api_key="mock_key"
         )
-        print("✅ PENGUJIAN SELESAI UNTUK SKENARIO INI.")
+        print("[OK] PENGUJIAN SELESAI UNTUK SKENARIO INI.")
 
 if __name__ == "__main__":
     asyncio.run(run_audit())

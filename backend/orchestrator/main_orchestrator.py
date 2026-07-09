@@ -27,6 +27,8 @@ class MainOrchestrator:
         self.decision_engine = DecisionEngine()
         self.boot_time = None
         self.is_running = False
+        self.last_activity = time.time()
+        self.idle_task = None
         
     async def boot(self):
         self.boot_time = datetime.now()
@@ -39,18 +41,44 @@ class MainOrchestrator:
         # Trigger Forgetting Mechanism saat boot (secara default untuk user default)
         try:
             mem = UserMemory(email="default")
+            
+            # Pilar G2: Integrity Check saat Booting
+            is_healthy = mem.check_integrity()
+            if not is_healthy:
+                print(f"[KERNEL-CRITICAL] ⚠️ Database memori rusak. Sistem memerlukan pemulihan (Restore).")
+            else:
+                print(f"[KERNEL] Database memori sehat.")
+                
             deleted = mem.cleanup_expired_facts()
             print(f"[KERNEL] Forgetting Mechanism: Dihapus {deleted} fakta kedaluwarsa.")
         except Exception as e:
-            print(f"[KERNEL] Gagal menjalankan forgetting mechanism: {e}")
+            print(f"[KERNEL] Gagal menjalankan rutinitas awal: {e}")
             
         print(f"[KERNEL] Booted at {self.boot_time}")
         print(f"[KERNEL] Planning Engine: READY")
         print(f"[KERNEL] Evidence Collector: READY")
         print(f"[KERNEL] Decision Engine: READY")
         
+        # Mulai idle checker untuk Pilar G3
+        self.idle_task = asyncio.create_task(self._idle_checker())
+        
+    async def _idle_checker(self):
+        """Memeriksa waktu idle untuk auto-backup (Pilar G3)."""
+        while self.is_running:
+            await asyncio.sleep(60) # Cek tiap menit
+            idle_time = time.time() - self.last_activity
+            if idle_time > 300: # 5 menit idle
+                try:
+                    from engineer.sandbox import EngineerSandbox
+                    sandbox = EngineerSandbox()
+                    sandbox.daily_auto_backup("default")
+                except Exception as e:
+                    print(f"[AUTO-BACKUP] Error: {e}")
+        
     async def shutdown(self):
         self.is_running = False
+        if self.idle_task:
+            self.idle_task.cancel()
         print(f"[KERNEL] Shutdown. Uptime: {datetime.now() - self.boot_time}")
         
     async def process(
@@ -63,6 +91,7 @@ class MainOrchestrator:
         project_context: Optional[str] = None
     ) -> Dict[str, Any]:
         start_time = time.time()
+        self.last_activity = start_time
         
         if not self.is_running:
             return self._error_response("Kernel belum siap. Silakan tunggu...")
