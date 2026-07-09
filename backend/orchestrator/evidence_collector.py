@@ -324,7 +324,15 @@ class EvidenceCollector:
                 message = plan.get("original_message", "")
                 file_match = re.search(r'([^\s"\']+\.(?:db|sqlite|csv|json|sqlite3))', message, re.IGNORECASE)
                 if file_match:
-                    context["file_path"] = os.path.join(os.getcwd(), file_match.group(1))
+                    raw_path = file_match.group(1)
+                    p1 = os.path.join(os.getcwd(), raw_path)
+                    p2 = os.path.join(os.path.dirname(os.getcwd()), raw_path)
+                    if os.path.exists(p1):
+                        context["file_path"] = p1
+                    elif os.path.exists(p2):
+                        context["file_path"] = p2
+                    else:
+                        context["file_path"] = p1 # Fallback
             elif agent_name == "research":
                 from agents.research_agent import ResearchAgent
                 agent = ResearchAgent(provider=router, user_id=user_id)
@@ -339,7 +347,15 @@ class EvidenceCollector:
                 message = plan.get("original_message", "")
                 file_match = re.search(r'([^\s"\']+\.[a-zA-Z0-9]+)', message, re.IGNORECASE)
                 if file_match:
-                    context["file_path"] = os.path.join(os.getcwd(), file_match.group(1))
+                    raw_path = file_match.group(1)
+                    p1 = os.path.join(os.getcwd(), raw_path)
+                    p2 = os.path.join(os.path.dirname(os.getcwd()), raw_path)
+                    if os.path.exists(p1):
+                        context["file_path"] = p1
+                    elif os.path.exists(p2):
+                        context["file_path"] = p2
+                    else:
+                        context["file_path"] = p1 # Fallback
                 
             if agent:
                 response = await agent.process(task=plan.get("original_message", ""), context=context)
