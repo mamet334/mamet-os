@@ -562,7 +562,7 @@
                       : 'bg-white/[0.03] border border-white/10 border-t-white/20 text-slate-200 hover:border-white/30 rounded-tl-sm'}">
                     
                     <!-- KONTEN PESAN (MARKDOWN) -->
-                    <div class="prose prose-invert prose-p:leading-relaxed prose-pre:bg-black/50 prose-pre:border prose-pre:border-white/10 prose-pre:p-4 prose-pre:rounded-xl prose-pre:overflow-x-auto prose-pre:max-w-full overflow-hidden break-words max-w-full prose-a:text-mamet-cyan prose-strong:text-white prose-td:border-white/20 prose-th:border-white/20 text-[14px]">
+                    <div class="prose prose-invert prose-p:leading-relaxed prose-pre:bg-black/40 prose-pre:border prose-pre:border-white/20 prose-pre:p-4 prose-pre:rounded-xl prose-pre:overflow-x-auto prose-pre:max-w-full prose-pre:w-full break-words max-w-full prose-a:text-mamet-cyan prose-strong:text-white prose-td:border-white/20 prose-th:border-white/20 text-[14px]">
                       {#if msg.role === 'user'}
                         <div class="whitespace-pre-wrap font-mono">{msg.content}</div>
                       {:else}
