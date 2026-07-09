@@ -231,6 +231,44 @@
       alert("❌ Terjadi kesalahan saat menghubungi server.");
     }
   }
+
+  let syncState = $state("idle"); // 'idle', 'backup', 'restore'
+
+  async function syncBackup() {
+    syncState = "backup";
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/sync/backup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userEmail })
+      });
+      const data = await res.json();
+      alert((data.status === "success" || data.status === "partial" ? "✅ " : "❌ ") + data.message);
+    } catch (e) {
+      alert("❌ Gagal terhubung ke peladen sinkronisasi.");
+    } finally {
+      syncState = "idle";
+    }
+  }
+
+  async function syncRestore() {
+    if (!confirm("PENTING: Proses ini akan mengunduh dan MENIMPA memori aktif Anda saat ini dengan cadangan dari Google Drive.\n\nLanjutkan?")) return;
+    
+    syncState = "restore";
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/sync/restore", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userEmail })
+      });
+      const data = await res.json();
+      alert((data.status === "success" ? "✅ " : "❌ ") + data.message);
+    } catch (e) {
+      alert("❌ Gagal memulihkan dari Google Drive.");
+    } finally {
+      syncState = "idle";
+    }
+  }
 </script>
 
 <div class="flex h-screen bg-transparent text-slate-200 font-sans overflow-hidden">
@@ -501,6 +539,53 @@
                   Belum ada data pemakaian tercatat. Mulai chat untuk mengumpulkan data.
                 </div>
               {/if}
+            </section>
+
+            <!-- SECTION: WARISAN DIGITAL (GOOGLE DRIVE SYNC) -->
+            <section class="pt-4">
+              <h3 class="text-sm font-semibold text-slate-300 mb-4 uppercase tracking-wider flex items-center gap-2">
+                ☁️ Sinkronisasi Cloud (Warisan Digital)
+              </h3>
+              
+              <div class="glass-panel overflow-hidden">
+                <div class="p-5 bg-black/20 border-b border-white/5 flex gap-4">
+                  <div class="text-indigo-400 bg-indigo-500/10 p-2 rounded-lg h-fit border border-indigo-500/20">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M12 12v9"></path><path d="m8 17 4-4 4 4"></path></svg>
+                  </div>
+                  <p class="text-sm text-slate-400 leading-relaxed">
+                    Cadangkan seluruh ingatan asisten, pangkalan pengetahuan (RAG), dan Kunci API (yang telah dienkripsi dengan sandi AES-256) ke akun Google Drive Anda.
+                    Ini memastikan "otak" MAMET OS selalu aman dan bisa diwariskan ke perangkat lain.
+                  </p>
+                </div>
+                <div class="p-5 flex gap-4 bg-white/5">
+                  <button 
+                    onclick={syncBackup}
+                    disabled={syncState !== 'idle'}
+                    class="flex-1 glass-btn-primary py-3 rounded-xl flex items-center justify-center gap-2 font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {#if syncState === 'backup'}
+                      <div class="w-4 h-4 border-2 border-white/80 border-t-transparent rounded-full animate-spin"></div>
+                      Sedang Menyinkronkan...
+                    {:else}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M12 12v9"></path><path d="m8 17 4-4 4 4"></path></svg>
+                      Unggah ke Google Drive
+                    {/if}
+                  </button>
+                  <button 
+                    onclick={syncRestore}
+                    disabled={syncState !== 'idle'}
+                    class="flex-1 border border-white/10 hover:border-emerald-500/50 bg-black/40 hover:bg-emerald-500/10 text-slate-300 hover:text-emerald-400 py-3 rounded-xl flex items-center justify-center gap-2 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {#if syncState === 'restore'}
+                      <div class="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"></div>
+                      Sedang Mengunduh...
+                    {:else}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M12 21v-9"></path><path d="m8 16 4 4 4-4"></path></svg>
+                      Pulihkan (Restore) Memori
+                    {/if}
+                  </button>
+                </div>
+              </div>
             </section>
 
             <!-- SECTION: ROLLBACK (SANDBOX) -->

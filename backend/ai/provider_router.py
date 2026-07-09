@@ -57,6 +57,8 @@ class ProviderRouter:
     def _load_providers(self):
         """Muat provider dari database."""
         print(f"[ROUTER] Mencari provider di database: {self.db_path}")
+        from auth.encryption import decrypt_data
+        
         with sqlite3.connect(self.db_path) as conn:
             rows = conn.execute(
                 "SELECT name, api_key_encrypted, is_active, priority FROM providers ORDER BY priority"
@@ -65,9 +67,10 @@ class ProviderRouter:
             print(f"[ROUTER] Ditemukan {len(rows)} provider")
             for row in rows:
                 name, key_encrypted, is_active, priority = row
-                print(f"[ROUTER] Provider: {name}, Key prefix: {key_encrypted[:15]}..., Active: {is_active}")
-                if is_active and key_encrypted:
-                    self._init_provider(name, key_encrypted)
+                raw_key = decrypt_data(key_encrypted, self.email)
+                print(f"[ROUTER] Provider: {name}, Active: {is_active}")
+                if is_active and raw_key:
+                    self._init_provider(name, raw_key)
     
     def _init_provider(self, name: str, api_key: str):
         """Inisialisasi provider berdasarkan nama."""
@@ -81,10 +84,13 @@ class ProviderRouter:
     
     def add_provider(self, name: str, api_key: str, priority: int = 1):
         """Tambah provider baru."""
+        from auth.encryption import encrypt_data
+        encrypted_key = encrypt_data(api_key, self.email)
+        
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(
                 "INSERT OR REPLACE INTO providers (name, api_key_encrypted, is_active, priority) VALUES (?, ?, 1, ?)",
-                (name, api_key, priority)
+                (name, encrypted_key, priority)
             )
             conn.commit()
         

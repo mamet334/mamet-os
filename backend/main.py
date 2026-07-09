@@ -247,5 +247,49 @@ async def get_system_status(email: str = "default"):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+# ================= GOOGLE DRIVE SYNC (WARISAN DIGITAL) ================= #
+
+class SyncRequest(BaseModel):
+    email: str
+
+@app.post("/api/sync/backup")
+async def backup_to_drive(req: SyncRequest):
+    """Mengunggah memory.db dan chroma_db ke Google Drive."""
+    try:
+        from memory.google_drive_sync import GoogleDriveSync
+        sync = GoogleDriveSync(req.email)
+        
+        res_db = sync.backup_database()
+        if res_db.get("status") != "success":
+            raise HTTPException(status_code=500, detail=res_db.get("message", "Gagal backup DB"))
+            
+        res_chroma = sync.backup_chromadb()
+        if res_chroma.get("status") != "success":
+            return {"status": "partial", "message": f"{res_db['message']} namun RAG gagal: {res_chroma.get('message')}"}
+            
+        return {"status": "success", "message": "Backup memori dan RAG ke Google Drive berhasil!"}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/sync/restore")
+async def restore_from_drive(req: SyncRequest):
+    """Memulihkan memory.db dari Google Drive."""
+    try:
+        from memory.google_drive_sync import GoogleDriveSync
+        sync = GoogleDriveSync(req.email)
+        
+        res_db = sync.restore_database()
+        if res_db.get("status") != "success":
+            raise HTTPException(status_code=500, detail=res_db.get("message", "Gagal restore DB"))
+            
+        return {"status": "success", "message": res_db["message"]}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
 if __name__ == "__main__":
+    import uvicorn
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
