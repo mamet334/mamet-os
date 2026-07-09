@@ -175,4 +175,22 @@ yang kosong. Ingatan Anda hanya bisa diakses dengan email dan password Anda.
 - **Self-Evolving**: Engineer bisa membantu membangun dan memperbaiki
 ```
 
+## 11. Log Pengembangan & Resolusi Bug (UX & UI)
+
+### Update 9 Juli 2026 - Penyempurnaan UX Level Produksi & Fitur Laci
+Sesi ini berfokus pada penghilangan friksi (hambatan UX) agar MAMET OS layak menjadi *daily driver*.
+
+**Fitur yang Ditambahkan:**
+1. **Markdown & Copy Button:** Pesan AI kini diproses menggunakan `marked` dan `DOMPurify` (Svelte/Vite) untuk menampilkan teks cetak tebal, daftar, tabel, dan pewarnaan kode. Tombol *Copy Response* disematkan untuk menyalin teks/kode secara utuh.
+2. **Persistent UI Memory:** Memanggil `GET /api/history/{email}` saat halaman dimuat (onMount) agar riwayat obrolan tidak hilang (kembali kosong) ketika pengguna memuat ulang layar (F5).
+3. **Auto-Scroll Otomatis:** Menambahkan fungsi pengguliran otomatis ke pesan terbaru.
+4. **Fitur Percakapan Baru (Clear Chat):** Tombol 🧹 di *header* untuk menghapus "Short-Term Memory" (UI) dan menembak `DELETE /api/history/{email}/{column}` ke SQLite agar obrolan sebelumnya tidak mengganggu konteks tugas baru.
+5. **Manajemen Konteks (Laci / Drawer):** Sistem penyimpanan multi-sesi bergaya sistem operasi. Memungkinkan pengguna menyimpan meja kerja yang sibuk ke dalam "Laci" khusus (menggunakan kolom `drawer_name` di tabel `conversations`), dan menariknya kembali kapan pun dibutuhkan.
+
+**Insiden & Post-Mortem Bug (Tauri & Svelte Z-Index):**
+*   **Insiden "Tombol Laci Tidak Bisa Diklik":** Saat fitur Laci pertama kali dirilis, klik pada ikon tidak memberikan respon apa-apa atau *modal* (popup) tidak muncul.
+*   **Akar Masalah (Root Cause) 1:** Penggunaan fungsi *native browser* `window.prompt()` untuk meminta nama Laci dari pengguna. Arsitektur keamanan Tauri v2 (berbasis Rust webview) sering kali memblokir akses ke fungsi bawaan *alert/prompt* kecuali dikonfigurasi secara eksplisit. Akibatnya eksekusi Javascript terhenti diam-diam.
+*   **Akar Masalah (Root Cause) 2:** Kesalahan injeksi komponen *Modal Laci* pada Svelte. Blok kode `{#if activeDrawerMenu}` tanpa sengaja terinjeksi ke dalam blok iterasi pesan UI yang memiliki logika `requires_approval`, sehingga *modal* terjebak di bawah *layer* chat atau gagal di-*render* sama sekali.
+*   **Resolusi:** `window.prompt()` dihilangkan dan diganti dengan antarmuka khusus (Custom Input Element) bergaya *glassmorphism* di dalam *modal*. Posisi *render modal* dipindahkan secara absolut (`absolute inset-0 z-50`) ke tingkat induk terluar dari `<section>`, memastikan *popup* Laci menutupi seluruh meja kerja tanpa gangguan tumpukan Z (*z-index*).
+
 Dokumen ini sudah mencakup semua keputusan hingga sesi ini. Anda bisa menyimpannya sebagai `Spesifikasi v3.1.md` yang baru.
