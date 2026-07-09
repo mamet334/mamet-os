@@ -158,6 +158,28 @@ async def delete_provider(name: str, email: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.get("/api/history/{email}")
+async def get_chat_history(email: str):
+    """Mengambil riwayat percakapan untuk semua kolom."""
+    try:
+        from memory.user_memory import UserMemory
+        memory = UserMemory(email)
+        history = memory.get_conversations(limit=50) # Ambil 50 percakapan terakhir
+        
+        # Kelompokkan berdasarkan kolom
+        grouped = {"kolom1": [], "kolom2": [], "kolom3": []}
+        
+        # Urutkan dari yang terlama ke terbaru
+        for row in reversed(history):
+            col = row.get("column", "kolom2")
+            if col in grouped:
+                grouped[col].append({"role": "user", "content": row.get("message", "")})
+                grouped[col].append({"role": "system", "content": row.get("response", ""), "requires_approval": False})
+                
+        return grouped
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # ================= AUTHENTICATION & DASHBOARD ================= #
 
 class AuthRequest(BaseModel):

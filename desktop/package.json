@@ -15,13 +15,16 @@
   "dependencies": {
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.7.1",
-    "@tauri-apps/plugin-opener": "^2"
+    "@tauri-apps/plugin-opener": "^2",
+    "dompurify": "^3.4.11",
+    "marked": "^18.0.5"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.6",
     "@sveltejs/kit": "^2.9.0",
     "@sveltejs/vite-plugin-svelte": "^5.0.0",
     "@tauri-apps/cli": "^2",
+    "@types/dompurify": "^3.0.5",
     "autoprefixer": "^10.5.2",
     "postcss": "^8.5.16",
     "svelte": "^5.0.0",

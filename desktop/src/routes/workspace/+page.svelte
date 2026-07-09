@@ -1,6 +1,14 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import { open } from '@tauri-apps/plugin-dialog';
+  import { marked } from 'marked';
+  import DOMPurify from 'dompurify';
+
+  // Config Marked for Markdown
+  marked.setOptions({
+    breaks: true,
+    gfm: true
+  });
 
   // State untuk kolom aktif (kini untuk memilih panel mana yang tampil)
   let activeColumn = $state("kolom2");
@@ -52,9 +60,40 @@
 
   let userEmail = $state("default");
 
-  onMount(() => {
+  let chatContainers: Record<string, HTMLElement> = {};
+
+  async function scrollToBottom(colId: string) {
+    await tick();
+    if (chatContainers[colId]) {
+      chatContainers[colId].scrollTop = chatContainers[colId].scrollHeight;
+    }
+  }
+
+  onMount(async () => {
     userEmail = localStorage.getItem("mamet_user_email") || "default";
+    
+    // Tarik histori percakapan dari backend
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/api/history/${userEmail}`);
+      if (res.ok) {
+        const historyData = await res.json();
+        messages.kolom1 = historyData.kolom1 || [];
+        messages.kolom2 = historyData.kolom2 || [];
+        messages.kolom3 = historyData.kolom3 || [];
+        
+        scrollToBottom("kolom1");
+        scrollToBottom("kolom2");
+        scrollToBottom("kolom3");
+      }
+    } catch (e) {
+      console.log("Histori chat kosong atau server mati.");
+    }
   });
+
+  function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text);
+    alert("✅ Teks berhasil disalin!");
+  }
 
   async function handleSend(columnId: string, customText?: string) {
     const textToSend = customText !== undefined ? customText : inputs[columnId];
@@ -62,6 +101,7 @@
 
     // Tambah pesan user ke UI
     messages[columnId] = [...messages[columnId], { role: "user", content: textToSend }];
+    scrollToBottom(columnId);
     if (customText === undefined) {
       inputs[columnId] = "";
     }
@@ -101,6 +141,7 @@
       messages[columnId] = [...messages[columnId], { role: "system", content: "❌ Gagal terhubung ke Kernel MAMET OS." }];
     } finally {
       loadings[columnId] = false;
+      scrollToBottom(columnId);
     }
   }
 
@@ -401,7 +442,10 @@
             </div>
 
             <!-- Chat Area -->
-            <div class="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 custom-scrollbar">
+            <div 
+              class="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 custom-scrollbar"
+              bind:this={chatContainers[col.id]}
+            >
               {#if messages[col.id].length === 0}
                 <div class="flex flex-col items-center justify-center h-full text-mamet-cyan/20">
                   <span class="text-6xl mb-4 opacity-50 drop-shadow-[0_0_15px_rgba(0,219,233,0.2)]">{@html col.icon}</span>
@@ -415,7 +459,25 @@
                     {msg.role === 'user' 
                       ? 'bg-mamet-cyan/15 border border-mamet-cyan/30 border-t-mamet-cyan/60 text-mamet-cyan hover:shadow-[0_8px_25px_rgba(0,219,233,0.25)] rounded-tr-sm' 
                       : 'bg-white/[0.03] border border-white/10 border-t-white/20 text-slate-200 hover:border-white/30 rounded-tl-sm'}">
-                    <div class="whitespace-pre-wrap font-mono text-[14px]">{msg.content}</div>
+                    
+                    <!-- KONTEN PESAN (MARKDOWN) -->
+                    <div class="prose prose-invert prose-p:leading-relaxed prose-pre:bg-black/50 prose-pre:border prose-pre:border-white/10 prose-pre:p-4 prose-pre:rounded-xl max-w-none prose-a:text-mamet-cyan prose-strong:text-white prose-td:border-white/20 prose-th:border-white/20 text-[14px]">
+                      {#if msg.role === 'user'}
+                        <div class="whitespace-pre-wrap font-mono">{msg.content}</div>
+                      {:else}
+                        {@html DOMPurify.sanitize(marked.parse(msg.content))}
+                        <div class="mt-3 flex justify-end">
+                          <button 
+                            onclick={() => copyToClipboard(msg.content)}
+                            class="text-[11px] text-slate-400 hover:text-mamet-cyan flex items-center gap-1.5 transition-colors bg-white/5 hover:bg-white/10 px-2.5 py-1.5 rounded-lg border border-white/5"
+                            title="Salin Teks Mentah"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                            Copy Response
+                          </button>
+                        </div>
+                      {/if}
+                    </div>
                     
                     {#if msg.requires_approval && col.id === "kolom3"}
                       <div class="mt-4 flex gap-3 border-t border-white/10 pt-4">
