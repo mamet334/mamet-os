@@ -234,96 +234,92 @@ class MainOrchestrator:
             elif action == "need_llm":
                 combined_context = decision.get("combined_context", "")
                 
-                if api_key:
-                    try:
-                        router = ProviderRouter(email=user_id)
-                        router.add_provider("openrouter", api_key, priority=1)
+                try:
+                    print(f"[KERNEL DEBUG] Mencoba ProviderRouter untuk user_id: {user_id}")
+                    # ProviderRouter akan membaca API key dari database secara otomatis
+                    router = ProviderRouter(email=user_id)
+                    if api_key:
+                        print(f"[KERNEL DEBUG] Menyimpan API Key dari UI ke database untuk user {user_id}")
+                        router.add_provider("openrouter", api_key)
+                    
+                    active_provider = router.get_active_provider()
+                    print(f"[KERNEL DEBUG] Provider aktif: {active_provider.name if active_provider else 'TIDAK ADA'}")
+                    if active_provider:
+                        print(f"[KERNEL DEBUG] API key provider: {active_provider.api_key[:20]}...")
+                    
+                    emotion = plan.get("emotion", "netral")
+                    tone_instructions = {
+                        "marah/kesal": "Pengguna sedang kesal atau frustrasi. Jawablah dengan sangat sabar, meminta maaf jika perlu, sangat solutif, dan jangan bertele-tele.",
+                        "terburu-buru": "Pengguna sedang terburu-buru. Berikan jawaban yang SANGAT SINGKAT, langsung ke intinya, tanpa basa-basi sama sekali.",
+                        "bingung/sedih": "Pengguna sedang kebingungan. Jawablah dengan nada yang sangat empati, menenangkan, hangat, dan pandu langkah demi langkah dengan pelan.",
+                        "santai": "Pengguna sedang santai. Gunakan gaya bahasa kasual, asyik, rileks, dan seperti sahabat akrab (boleh pakai slang ringan).",
+                        "netral": "Jawablah dengan ramah, profesional, dan singkat."
+                    }
+                    tone_prompt = tone_instructions.get(emotion, tone_instructions["netral"])
+                    
+                    system_prompt = f"Kamu adalah MAMET OS, asisten pribadi (bukan sekadar AI chatbot). Gunakan bahasa Indonesia. {tone_prompt}"
+                    
+                    # Injeksi Struktur Format Laporan
+                    if plan.get("requires_structured_format"):
+                        system_prompt += (
+                            "\n\nPENTING: Pengguna meminta ringkasan atau kesimpulan. "
+                            "Kamu WAJIB merespons menggunakan format Terstruktur (Executive Summary) yang sangat rapi. "
+                            "Gunakan Markdown: Heading (##), Poin-poin tebal (- **Topik**: Penjelasan), "
+                            "dan tabel jika ada komparasi data. Jangan menggunakan paragraf yang panjang dan membosankan."
+                        )
                         
-                        emotion = plan.get("emotion", "netral")
-                        tone_instructions = {
-                            "marah/kesal": "Pengguna sedang kesal atau frustrasi. Jawablah dengan sangat sabar, meminta maaf jika perlu, sangat solutif, dan jangan bertele-tele.",
-                            "terburu-buru": "Pengguna sedang terburu-buru. Berikan jawaban yang SANGAT SINGKAT, langsung ke intinya, tanpa basa-basi sama sekali.",
-                            "bingung/sedih": "Pengguna sedang kebingungan. Jawablah dengan nada yang sangat empati, menenangkan, hangat, dan pandu langkah demi langkah dengan pelan.",
-                            "santai": "Pengguna sedang santai. Gunakan gaya bahasa kasual, asyik, rileks, dan seperti sahabat akrab (boleh pakai slang ringan).",
-                            "netral": "Jawablah dengan ramah, profesional, dan singkat."
-                        }
-                        tone_prompt = tone_instructions.get(emotion, tone_instructions["netral"])
+                    # Injeksi Multi-Langkah Otonom
+                    if plan.get("is_multi_step") and plan.get("sub_tasks"):
+                        tasks_str = "\n".join([f"{i+1}. {t}" for i, t in enumerate(plan["sub_tasks"])])
+                        system_prompt += (
+                            f"\n\nPENTING: Pengguna memberikan instruksi MULTI-LANGKAH (Berantai). "
+                            f"Kamu harus memproses dan menyelesaikan semua urutan tugas berikut ini dalam satu balasan utuh:\n{tasks_str}\n"
+                            "Pastikan tidak ada satu pun langkah yang terlewat. Jika langkah terakhir meminta menyimpan/menulis file, "
+                            "siapkan konten file tersebut di dalam blok kode (Code Block) lalu beritahu pengguna untuk mengetik 'tulis file [nama] dengan isi tersebut' agar Engineer (Kolom 3) bisa mengeksekusinya."
+                        )
                         
-                        system_prompt = f"Kamu adalah MAMET OS, asisten pribadi (bukan sekadar AI chatbot). Gunakan bahasa Indonesia. {tone_prompt}"
-                        
-                        # Injeksi Struktur Format Laporan
-                        if plan.get("requires_structured_format"):
-                            system_prompt += (
-                                "\n\nPENTING: Pengguna meminta ringkasan atau kesimpulan. "
-                                "Kamu WAJIB merespons menggunakan format Terstruktur (Executive Summary) yang sangat rapi. "
-                                "Gunakan Markdown: Heading (##), Poin-poin tebal (- **Topik**: Penjelasan), "
-                                "dan tabel jika ada komparasi data. Jangan menggunakan paragraf yang panjang dan membosankan."
-                            )
-                            
-                        # Injeksi Multi-Langkah Otonom
-                        if plan.get("is_multi_step") and plan.get("sub_tasks"):
-                            tasks_str = "\n".join([f"{i+1}. {t}" for i, t in enumerate(plan["sub_tasks"])])
-                            system_prompt += (
-                                f"\n\nPENTING: Pengguna memberikan instruksi MULTI-LANGKAH (Berantai). "
-                                f"Kamu harus memproses dan menyelesaikan semua urutan tugas berikut ini dalam satu balasan utuh:\n{tasks_str}\n"
-                                "Pastikan tidak ada satu pun langkah yang terlewat. Jika langkah terakhir meminta menyimpan/menulis file, "
-                                "siapkan konten file tersebut di dalam blok kode (Code Block) lalu beritahu pengguna untuk mengetik 'tulis file [nama] dengan isi tersebut' agar Engineer (Kolom 3) bisa mengeksekusinya."
-                            )
-                            
-                        messages = [{"role": "system", "content": system_prompt}]
-                        
-                        if combined_context:
-                            messages.append({"role": "system", "content": f"Konteks tambahan:\n{combined_context}"})
-                        
-                        user_msg = ""
-                        for item in evidence.get("items", []):
-                            if item.get("source") == "user_memory":
-                                recent = item.get("recent_conversations", [])
-                                if recent:
-                                    user_msg = recent[-1].get("message", "")
-                        
-                        if not user_msg:
-                            user_msg = evidence.get("direct_answer", "Halo")
-                        
-                        messages.append({"role": "user", "content": user_msg})
-                        
-                        llm_response = router.chat(messages)
-                        
-                        return {
-                            "response": llm_response,
-                            "sources": evidence.get("sources", []),
-                            "actions_taken": decision.get("actions_taken", []),
-                            "requires_approval": False,
-                            "approval_details": {}
-                        }
-                        
-                    except Exception as e:
-                        print(f"[KERNEL] LLM error: {e}")
-                
-                if combined_context:
+                    messages = [{"role": "system", "content": system_prompt}]
+                    
+                    if combined_context:
+                        messages.append({"role": "system", "content": f"Konteks tambahan:\n{combined_context}"})
+                    
+                    user_msg = ""
+                    for item in evidence.get("items", []):
+                        if item.get("source") == "user_memory":
+                            recent = item.get("recent_conversations", [])
+                            if recent:
+                                user_msg = recent[-1].get("message", "")
+                    
+                    if not user_msg:
+                        user_msg = evidence.get("direct_answer", "Halo")
+                    
+                    messages.append({"role": "user", "content": user_msg})
+                    
+                    llm_response = router.chat(messages)
+                    
                     return {
-                        "response": f"{combined_context}\n\n_(Menunggu koneksi AI untuk respons lebih personal)_",
+                        "response": llm_response,
                         "sources": evidence.get("sources", []),
                         "actions_taken": decision.get("actions_taken", []),
                         "requires_approval": False,
                         "approval_details": {}
                     }
-                
-                return {
-                    "response": "[LLM] Fitur ini akan tersedia setelah integrasi OpenRouter.",
-                    "sources": evidence.get("sources", []),
-                    "actions_taken": decision.get("actions_taken", []),
-                    "requires_approval": False,
-                    "approval_details": {}
-                }
+                    
+                except Exception as e:
+                    print(f"[KERNEL] LLM error: {e}")
+                    return {
+                        "response": f"❌ Gagal memanggil AI: {str(e)}\n\n_Pastikan Anda sudah menyimpan API Key di menu Pengaturan AI (Settings)._",
+                        "sources": evidence.get("sources", []),
+                        "actions_taken": decision.get("actions_taken", []),
+                        "requires_approval": False,
+                        "approval_details": {}
+                    }
             
             elif action == "need_agent":
                 agent_name = decision.get("agent")
                 agent_instance = None
                 
                 router = ProviderRouter(email=user_id)
-                if api_key:
-                    router.add_provider("openrouter", api_key, priority=1)
                 
                 if agent_name == "database":
                     from agents.database_explorer_agent import DatabaseExplorerAgent
@@ -340,7 +336,6 @@ class MainOrchestrator:
                     
                 if agent_instance:
                     user_msg = plan.get("original_message", "")
-                    # Eksekusi agen secara nyata!
                     try:
                         agent_response = await agent_instance.process(task=user_msg, context=evidence)
                         return {

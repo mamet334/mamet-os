@@ -23,11 +23,14 @@ class OpenRouterProvider(AIProvider):
         self.api_key = api_key
     
     def chat(self, messages: List[Dict], model: str = None) -> str:
-        model = model or "mistralai/mistral-7b-instruct"
+        # Model default yang gratis
+        model = model or "openrouter/free"
         
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "HTTP-Referer": "http://localhost:8000",
+            "X-Title": "MAMET OS"
         }
         
         payload = {
@@ -53,7 +56,9 @@ class OpenRouterProvider(AIProvider):
         
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "HTTP-Referer": "http://localhost:8000",
+            "X-Title": "MAMET OS"
         }
         
         payload = {

@@ -64,7 +64,9 @@ class EmbeddingEngine:
         
         headers = {
             "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "HTTP-Referer": "http://localhost:8000",
+            "X-Title": "MAMET OS"
         }
         
         payload = {
@@ -93,8 +95,7 @@ class EmbeddingEngine:
             
         except requests.exceptions.RequestException as e:
             print(f"[EMBEDDING] ❌ Error: {str(e)}")
-            # Fallback: return zeros
-            return [[0.0] * 768 for _ in texts]
+            raise e
     
     def get_embedding_dimension(self) -> int:
         """Dapatkan dimensi embedding untuk model ini."""

@@ -50,9 +50,12 @@
   let backupsData = $state<any[]>([]);
   let loadingDashboard = $state(false);
 
+  let userEmail = $state("default");
+
   onMount(() => {
     // Coba ambil API key dari localStorage
     apiKey = localStorage.getItem("openrouter_key") || "";
+    userEmail = localStorage.getItem("mamet_user_email") || "default";
   });
 
   async function handleSend(columnId: string, customText?: string) {
@@ -72,7 +75,7 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: "default@mamet.os",
+          user_id: userEmail,
           column: columnId,
           message: textToSend,
           api_key: apiKey || null,
@@ -165,7 +168,7 @@
     loadingDashboard = true;
     try {
       // Ambil data budget
-      const bRes = await fetch(`http://127.0.0.1:8000/api/budget?email=default`);
+      const bRes = await fetch(`http://127.0.0.1:8000/api/budget?email=${userEmail}`);
       budgetData = await bRes.json();
       
       // Ambil data backups
