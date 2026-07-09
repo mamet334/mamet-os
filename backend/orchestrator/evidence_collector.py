@@ -322,22 +322,33 @@ class EvidenceCollector:
                 import re
                 import os
                 message = plan.get("original_message", "")
-                file_match = re.search(r'([^\s"\']+\.(?:db|sqlite|csv|json|sqlite3))', message, re.IGNORECASE)
-                if file_match:
-                    raw_path = file_match.group(1)
+                
+                # Ekstraksi nama file cerdas (dukung spasi)
+                match = re.search(r'([a-zA-Z0-9_ \-\(\)]+\.(?:db|sqlite|csv|json|sqlite3))', message, re.IGNORECASE)
+                if match:
+                    full_str = match.group(1).strip()
+                    parts = full_str.split()
                     project_ctx = plan.get("project_context")
-                    p_ctx = os.path.join(project_ctx, raw_path) if project_ctx else None
-                    p1 = os.path.join(os.getcwd(), raw_path)
-                    p2 = os.path.join(os.path.dirname(os.getcwd()), raw_path)
                     
-                    if p_ctx and os.path.exists(p_ctx):
-                        context["file_path"] = p_ctx
-                    elif os.path.exists(p1):
-                        context["file_path"] = p1
-                    elif os.path.exists(p2):
-                        context["file_path"] = p2
-                    else:
-                        context["file_path"] = p1 # Fallback
+                    for i in range(len(parts)):
+                        possible_name = " ".join(parts[i:])
+                        p_ctx = os.path.join(project_ctx, possible_name) if project_ctx else None
+                        p1 = os.path.join(os.getcwd(), possible_name)
+                        p2 = os.path.join(os.path.dirname(os.getcwd()), possible_name)
+                        
+                        if p_ctx and os.path.exists(p_ctx):
+                            context["file_path"] = p_ctx
+                            break
+                        elif os.path.exists(p1):
+                            context["file_path"] = p1
+                            break
+                        elif os.path.exists(p2):
+                            context["file_path"] = p2
+                            break
+                    if "file_path" not in context:
+                        # Fallback ambil kata terakhir saja
+                        context["file_path"] = os.path.join(os.getcwd(), parts[-1])
+                        
             elif agent_name == "research":
                 from agents.research_agent import ResearchAgent
                 agent = ResearchAgent(provider=router, user_id=user_id)
@@ -350,22 +361,32 @@ class EvidenceCollector:
                 import re
                 import os
                 message = plan.get("original_message", "")
-                file_match = re.search(r'([^\s"\']+\.[a-zA-Z0-9]+)', message, re.IGNORECASE)
-                if file_match:
-                    raw_path = file_match.group(1)
+                
+                # Ekstraksi nama file cerdas (dukung spasi)
+                match = re.search(r'([a-zA-Z0-9_ \-\(\)]+\.[a-zA-Z0-9]+)', message, re.IGNORECASE)
+                if match:
+                    full_str = match.group(1).strip()
+                    parts = full_str.split()
                     project_ctx = plan.get("project_context")
-                    p_ctx = os.path.join(project_ctx, raw_path) if project_ctx else None
-                    p1 = os.path.join(os.getcwd(), raw_path)
-                    p2 = os.path.join(os.path.dirname(os.getcwd()), raw_path)
                     
-                    if p_ctx and os.path.exists(p_ctx):
-                        context["file_path"] = p_ctx
-                    elif os.path.exists(p1):
-                        context["file_path"] = p1
-                    elif os.path.exists(p2):
-                        context["file_path"] = p2
-                    else:
-                        context["file_path"] = p1 # Fallback
+                    for i in range(len(parts)):
+                        possible_name = " ".join(parts[i:])
+                        p_ctx = os.path.join(project_ctx, possible_name) if project_ctx else None
+                        p1 = os.path.join(os.getcwd(), possible_name)
+                        p2 = os.path.join(os.path.dirname(os.getcwd()), possible_name)
+                        
+                        if p_ctx and os.path.exists(p_ctx):
+                            context["file_path"] = p_ctx
+                            break
+                        elif os.path.exists(p1):
+                            context["file_path"] = p1
+                            break
+                        elif os.path.exists(p2):
+                            context["file_path"] = p2
+                            break
+                    if "file_path" not in context:
+                        # Fallback ambil kata terakhir saja
+                        context["file_path"] = os.path.join(os.getcwd(), parts[-1])
                 
             if agent:
                 response = await agent.process(task=plan.get("original_message", ""), context=context)
