@@ -104,8 +104,12 @@ class Engineer:
             return "rollback"
         elif any(word in msg for word in ["backup", "cadangan"]):
             return "list_backups"
-        elif any(word in msg for word in ["hapus rag", "hapus dokumen", "delete rag"]):
-            return "delete_rag"
+        elif any(word in msg for word in ["hapus rag", "hapus dokumen", "delete rag", "hapus"]):
+            # Cek jika pesan mengandung ekstensi file umum (sebagai pengaman tambahan jika hanya bilang 'hapus')
+            if "hapus" in msg and re.search(r'\.[a-z0-9]+', msg):
+                return "delete_rag"
+            elif any(w in msg for w in ["rag", "dokumen"]):
+                return "delete_rag"
         elif any(word in msg for word in ["list rag", "daftar rag", "daftar dokumen", "lihat dokumen rag", "isi rag"]):
             return "list_rag"
         else:
@@ -141,7 +145,7 @@ class Engineer:
         """Tangani permintaan penghapusan dokumen RAG."""
         import re
         # Ekstrak nama file dari pesan, dukung spasi
-        filename_match = re.search(r'(?:hapus rag|hapus dokumen|delete rag)\s+["\']?(.*?\.([a-zA-Z0-9]+))["\']?\b', message, re.IGNORECASE)
+        filename_match = re.search(r'(?:hapus rag|hapus dokumen|delete rag|hapus)\s+["\']?(.*?\.([a-zA-Z0-9]+))["\']?\b', message, re.IGNORECASE)
         if not filename_match:
             return {"action": "direct_reply", "response": "❌ Sebutkan nama file dokumen yang ingin dihapus. Contoh: `hapus dokumen laporan.pdf`"}
             
