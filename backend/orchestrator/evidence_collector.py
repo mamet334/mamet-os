@@ -248,13 +248,27 @@ class EvidenceCollector:
             # 1. Dapatkan struktur folder (maksimal depth 2 agar tidak terlalu panjang)
             tree = reader.get_project_tree(max_depth=2)
             
-            # 2. Cari penyebutan nama file dalam pesan
+            # 2. Cari file relevan yang disebut dalam pesan
             message = plan.get("original_message", "")
-            # Regex untuk menangkap nama file yang ada ekstensinya
-            file_matches = re.findall(r'([a-zA-Z0-9_/\-\\]+\.(?:py|js|ts|svelte|css|html|md|json|txt|rs|toml))', message, re.IGNORECASE)
+            
+            # Ambil semua file secara rekursif (kedalaman 10)
+            all_items = reader.list_directory(recursive=True, depth=10)
+            all_files = [item.replace("📄 ", "") for item in all_items if item.startswith("📄 ")]
+            
+            # Ekstrak kata-kata dari pesan (termasuk karakter ., -, _)
+            words = set(re.findall(r'\b[\w.-]+\b', message.lower()))
+            
+            matched_files = set()
+            for f in all_files:
+                basename = os.path.basename(f).lower() # misal: main_orchestrator.py
+                name_without_ext = os.path.splitext(basename)[0] # misal: main_orchestrator
+                
+                # Jika nama file lengkap atau nama tanpa ekstensi disebut dalam pesan
+                if basename in words or name_without_ext in words:
+                    matched_files.add(f)
             
             file_contents = []
-            for file_path in set(file_matches):
+            for file_path in matched_files:
                 try:
                     content = reader.read_file(file_path)
                     # Batasi isi file agar tidak melebihi konteks LLM

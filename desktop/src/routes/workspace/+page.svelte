@@ -183,7 +183,12 @@
         projectContextPath = selected;
       }
     } catch (error) {
-      console.error("Gagal membuka folder picker:", error);
+      console.warn("Tauri dialog gagal (kemungkinan dijalankan di peramban Web). Fallback ke prompt.");
+      const manualPath = prompt("Fitur pemilih folder otomatis hanya berjalan di aplikasi Desktop Tauri.\n\nKarena Anda mengakses via Peramban Web (Chrome/Edge), silakan masukkan path (alamat) folder proyek Anda secara manual:\n(Contoh: D:\\SLAMET\\other\\mamet-os)");
+      
+      if (manualPath && manualPath.trim()) {
+        projectContextPath = manualPath.trim();
+      }
     }
   }
 
