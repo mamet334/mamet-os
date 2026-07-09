@@ -220,6 +220,15 @@ class UserMemory:
                 (limit,)
             ).fetchall()
             return [dict(row) for row in rows]
+            
+    def clear_conversations(self, column: str):
+        """Hapus semua riwayat percakapan untuk kolom tertentu."""
+        with self._get_connection() as conn:
+            conn.execute(
+                "DELETE FROM conversations WHERE column_name = ?",
+                (column,)
+            )
+            conn.commit()
     
     def get_facts_context(self) -> str:
         """

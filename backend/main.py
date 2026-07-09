@@ -164,19 +164,30 @@ async def get_chat_history(email: str):
     try:
         from memory.user_memory import UserMemory
         memory = UserMemory(email)
-        history = memory.get_conversations(limit=50) # Ambil 50 percakapan terakhir
+        history = memory.get_recent_conversations(limit=50) # Ambil 50 percakapan terakhir
         
         # Kelompokkan berdasarkan kolom
         grouped = {"kolom1": [], "kolom2": [], "kolom3": []}
         
         # Urutkan dari yang terlama ke terbaru
         for row in reversed(history):
-            col = row.get("column", "kolom2")
+            col = row.get("column_name", "kolom2")
             if col in grouped:
                 grouped[col].append({"role": "user", "content": row.get("message", "")})
                 grouped[col].append({"role": "system", "content": row.get("response", ""), "requires_approval": False})
                 
         return grouped
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/history/{email}/{column}")
+async def clear_chat_history(email: str, column: str):
+    """Menghapus riwayat percakapan untuk kolom tertentu."""
+    try:
+        from memory.user_memory import UserMemory
+        memory = UserMemory(email)
+        memory.clear_conversations(column)
+        return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
