@@ -556,13 +556,13 @@
 
               {#each messages[col.id] as msg}
                 <div class="flex flex-col {msg.role === 'user' ? 'items-end' : 'items-start'}">
-                  <div class="max-w-[85%] md:max-w-[75%] p-4 rounded-2xl text-[15px] leading-relaxed shadow-[0_4px_20px_rgba(0,0,0,0.15)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5
+                  <div class="max-w-[85%] md:max-w-[75%] min-w-0 p-4 rounded-2xl text-[15px] leading-relaxed shadow-[0_4px_20px_rgba(0,0,0,0.15)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5
                     {msg.role === 'user' 
                       ? 'bg-mamet-cyan/15 border border-mamet-cyan/30 border-t-mamet-cyan/60 text-mamet-cyan hover:shadow-[0_8px_25px_rgba(0,219,233,0.25)] rounded-tr-sm' 
                       : 'bg-white/[0.03] border border-white/10 border-t-white/20 text-slate-200 hover:border-white/30 rounded-tl-sm'}">
                     
                     <!-- KONTEN PESAN (MARKDOWN) -->
-                    <div class="prose prose-invert prose-p:leading-relaxed prose-pre:bg-black/40 prose-pre:border prose-pre:border-white/20 prose-pre:p-4 prose-pre:rounded-xl prose-pre:overflow-x-auto prose-pre:max-w-full prose-pre:w-full break-words max-w-full prose-a:text-mamet-cyan prose-strong:text-white prose-td:border-white/20 prose-th:border-white/20 text-[14px]">
+                    <div class="prose prose-invert prose-p:leading-relaxed prose-pre:bg-black/40 prose-pre:border prose-pre:border-white/20 prose-pre:p-4 prose-pre:rounded-xl prose-pre:overflow-x-auto prose-pre:max-w-full prose-pre:w-full break-words overflow-x-auto max-w-full w-full prose-a:text-mamet-cyan prose-strong:text-white prose-td:border-white/20 prose-th:border-white/20 text-[14px]">
                       {#if msg.role === 'user'}
                         <div class="whitespace-pre-wrap font-mono">{msg.content}</div>
                       {:else}
