@@ -24,7 +24,7 @@
         errorMsg = data.detail || "Terjadi kesalahan";
       } else {
         localStorage.setItem('token', data.token);
-        localStorage.setItem('email', email);
+        localStorage.setItem('mamet_user_email', email);
         goto('/dashboard');
       }
     } catch (e) {

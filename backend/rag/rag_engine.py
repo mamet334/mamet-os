@@ -18,7 +18,7 @@ try:
     CHROMA_AVAILABLE = True
 except ImportError:
     CHROMA_AVAILABLE = False
-    print("[RAG] ⚠️ ChromaDB tidak tersedia. Install dengan: pip install chromadb")
+    print("[RAG] Peringatan: ChromaDB tidak tersedia. Install dengan: pip install chromadb")
 
 from .chunker import DocumentChunker
 from .embedding import EmbeddingEngine

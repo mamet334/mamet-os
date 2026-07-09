@@ -24,7 +24,7 @@ class OpenRouterProvider(AIProvider):
     
     def chat(self, messages: List[Dict], model: str = None) -> str:
         # Model default yang gratis
-        model = model or "openrouter/free"
+        model = model or "openai/gpt-4o-mini"
         
         headers = {
             "Authorization": f"Bearer {self.api_key}",

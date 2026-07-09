@@ -8,7 +8,7 @@
   let errorMsg = '';
 
   onMount(async () => {
-    email = localStorage.getItem('email') || '';
+    email = localStorage.getItem('mamet_user_email') || '';
     if (!email) {
       goto('/');
       return;
@@ -30,7 +30,7 @@
   
   function logout() {
     localStorage.removeItem('token');
-    localStorage.removeItem('email');
+    localStorage.removeItem('mamet_user_email');
     goto('/');
   }
 </script>

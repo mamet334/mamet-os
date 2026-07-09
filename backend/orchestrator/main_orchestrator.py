@@ -36,14 +36,7 @@ class MainOrchestrator:
         await self.evidence_collector.initialize()
         await self.decision_engine.initialize()
         
-        # Trigger Forgetting Mechanism saat boot (secara default untuk user default)
-        try:
-            mem = UserMemory(email="default")
-            deleted = mem.cleanup_expired_facts()
-            print(f"[KERNEL] Forgetting Mechanism: Dihapus {deleted} fakta kedaluwarsa.")
-        except Exception as e:
-            print(f"[KERNEL] Gagal menjalankan forgetting mechanism: {e}")
-            
+        # Trigger Forgetting Mechanism dipindahkan ke process() agar scope user tepat
         print(f"[KERNEL] Booted at {self.boot_time}")
         print(f"[KERNEL] Planning Engine: READY")
         print(f"[KERNEL] Evidence Collector: READY")
@@ -66,6 +59,17 @@ class MainOrchestrator:
         
         if not self.is_running:
             return self._error_response("Kernel belum siap. Silakan tunggu...")
+            
+        # Trigger Forgetting Mechanism Just-In-Time untuk user yang aktif
+        try:
+            mem = UserMemory(email=user_id)
+            if not mem.check_integrity():
+                print(f"[KERNEL-CRITICAL] ⚠️ Database memori rusak untuk {user_id}...")
+            deleted = mem.cleanup_expired_facts()
+            if deleted > 0:
+                print(f"[KERNEL] Forgetting Mechanism: Dihapus {deleted} fakta kedaluwarsa untuk {user_id}.")
+        except Exception as e:
+            print(f"[KERNEL] Gagal menjalankan forgetting mechanism untuk {user_id}: {e}")
         
         print(f"\n[KERNEL] ========== NEW REQUEST ==========")
         print(f"[KERNEL] User: {user_id}")
@@ -151,15 +155,15 @@ class MainOrchestrator:
             print(f"[KERNEL] Percakapan tersimpan ke memori")
             
             # Ekstrak fakta jika dari Kolom 2 (Asisten Pribadi)
-            if column == "kolom2" and api_key:
+            if column == "kolom2":
                 asyncio.create_task(
-                    self._extract_and_save_facts(user_id, message, response, api_key)
+                    self._extract_and_save_facts(user_id, message, response)
                 )
                 
         except Exception as e:
             print(f"[KERNEL] Gagal menyimpan percakapan: {e}")
             
-    async def _extract_and_save_facts(self, user_id: str, message: str, response: str, api_key: str):
+    async def _extract_and_save_facts(self, user_id: str, message: str, response: str):
         """Mengekstrak fakta secara asinkron di latar belakang."""
         try:
             print(f"[KERNEL] Memulai ekstraksi fakta untuk user {user_id}...")
@@ -167,7 +171,6 @@ class MainOrchestrator:
             from memory.fact_extractor import FactExtractor
             
             router = ProviderRouter(email=user_id)
-            router.add_provider("openrouter", api_key, priority=1)
             
             extractor = FactExtractor(provider=router)
             facts = await extractor.extract_facts(message, response)
@@ -238,9 +241,9 @@ class MainOrchestrator:
                     print(f"[KERNEL DEBUG] Mencoba ProviderRouter untuk user_id: {user_id}")
                     # ProviderRouter akan membaca API key dari database secara otomatis
                     router = ProviderRouter(email=user_id)
-                    if api_key:
-                        print(f"[KERNEL DEBUG] Menyimpan API Key dari UI ke database untuk user {user_id}")
-                        router.add_provider("openrouter", api_key)
+                    # Pastikan API key terbaca dengan benar
+                    if api_key and api_key != "titan123@":
+                        router.add_provider("openrouter", api_key, priority=1)
                     
                     active_provider = router.get_active_provider()
                     print(f"[KERNEL DEBUG] Provider aktif: {active_provider.name if active_provider else 'TIDAK ADA'}")
@@ -274,8 +277,10 @@ class MainOrchestrator:
                         system_prompt += (
                             f"\n\nPENTING: Pengguna memberikan instruksi MULTI-LANGKAH (Berantai). "
                             f"Kamu harus memproses dan menyelesaikan semua urutan tugas berikut ini dalam satu balasan utuh:\n{tasks_str}\n"
-                            "Pastikan tidak ada satu pun langkah yang terlewat. Jika langkah terakhir meminta menyimpan/menulis file, "
-                            "siapkan konten file tersebut di dalam blok kode (Code Block) lalu beritahu pengguna untuk mengetik 'tulis file [nama] dengan isi tersebut' agar Engineer (Kolom 3) bisa mengeksekusinya."
+                            "Pastikan tidak ada satu pun langkah yang terlewat. Jika tugas melibatkan penulisan atau refaktor multi-file, "
+                            "kamu WAJIB menyajikan setiap kode menggunakan struktur:\n"
+                            "FILE: path/to/file.py\n```python\n<isi_kode>\n```\n"
+                            "Lalu ingatkan pengguna untuk menyalin seluruh output tersebut ke Kolom 3 agar Engineer bisa mengeksekusinya secara bersamaan."
                         )
                         
                     messages = [{"role": "system", "content": system_prompt}]
@@ -283,19 +288,21 @@ class MainOrchestrator:
                     if combined_context:
                         messages.append({"role": "system", "content": f"Konteks tambahan:\n{combined_context}"})
                     
-                    user_msg = ""
+                    # Masukkan riwayat percakapan dari User Memory
                     for item in evidence.get("items", []):
                         if item.get("source") == "user_memory":
                             recent = item.get("recent_conversations", [])
-                            if recent:
-                                user_msg = recent[-1].get("message", "")
+                            # Masukkan histori (hindari memasukkan pesan saat ini jika ada duplikasi)
+                            for conv in recent:
+                                if conv.get("message"):
+                                    messages.append({"role": "user", "content": conv.get("message")})
+                                if conv.get("response"):
+                                    messages.append({"role": "assistant", "content": conv.get("response")})
                     
-                    if not user_msg:
-                        user_msg = evidence.get("direct_answer", "Halo")
-                    
+                    user_msg = plan.get("original_message", "Halo")
                     messages.append({"role": "user", "content": user_msg})
                     
-                    llm_response = router.chat(messages)
+                    llm_response = router.chat(messages, model="openai/gpt-4o-mini")
                     
                     return {
                         "response": llm_response,

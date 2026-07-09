@@ -233,24 +233,50 @@ class EvidenceCollector:
             }
             
     async def _check_project_context(self, user_id: str, plan: dict, api_key: str = None) -> dict:
-        """Cek Project Context menggunakan kapabilitas Engineer tapi dibatasi ke folder proyek."""
+        """Cek Project Context untuk Kolom 2: Memberikan struktur folder dan isi file yang relevan."""
         project_context = plan.get("project_context")
         if not project_context:
             return None
             
         print(f"  [PROJECT_CONTEXT] Menggunakan path: {project_context}")
         try:
-            from engineer.engineer_main import Engineer
-            # Inisialisasi Engineer dengan root_path = folder proyek user
-            engineer = Engineer(root_path=project_context)
+            from engineer.file_reader import FileReader
+            import re
             
-            result = await engineer.process(
-                message=plan.get("original_message", ""),
-                user_id=user_id
-            )
+            reader = FileReader(project_context)
+            
+            # 1. Dapatkan struktur folder (maksimal depth 2 agar tidak terlalu panjang)
+            tree = reader.get_project_tree(max_depth=2)
+            
+            # 2. Cari penyebutan nama file dalam pesan
+            message = plan.get("original_message", "")
+            # Regex untuk menangkap nama file yang ada ekstensinya
+            file_matches = re.findall(r'([a-zA-Z0-9_/\-\\]+\.(?:py|js|ts|svelte|css|html|md|json|txt|rs|toml))', message, re.IGNORECASE)
+            
+            file_contents = []
+            for file_path in set(file_matches):
+                try:
+                    content = reader.read_file(file_path)
+                    # Batasi isi file agar tidak melebihi konteks LLM
+                    if len(content) > 3000:
+                        content = content[:3000] + "\n... (terpotong karena terlalu panjang)"
+                    file_contents.append(f"Isi file {file_path}:\n```\n{content}\n```")
+                except Exception as e:
+                    file_contents.append(f"Gagal membaca file {file_path}: {e}")
+            
+            # 3. Gabungkan hasil
+            response_parts = [f"Struktur Direktori Proyek:\n```\n{tree}\n```"]
+            if file_contents:
+                response_parts.extend(file_contents)
+            
+            response_text = "\n\n".join(response_parts)
+            
             return {
                 "source": "project_context",
-                "data": result,
+                "data": {
+                    "action": "provide_context",
+                    "response": response_text
+                },
                 "confidence": 0.95
             }
         except Exception as e:

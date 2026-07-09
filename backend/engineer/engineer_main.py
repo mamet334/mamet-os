@@ -160,8 +160,41 @@ class Engineer:
         }
     
     async def _handle_write_file(self, message: str) -> Dict[str, Any]:
-        """Tangani permintaan menulis file - perlu persetujuan."""
-        # Ekstrak path dan konten dari pesan
+        """Tangani permintaan menulis file (mendukung multi-file)."""
+        import re
+        
+        # 1. Cek pola multi-file berstruktur FILE: path \n ``` \n content \n ```
+        multi_file_pattern = r'FILE:\s*([^\s]+)\s*\n*```(?:[a-zA-Z0-9_]+)?\n(.*?)\n```'
+        matches = re.findall(multi_file_pattern, message, re.DOTALL | re.IGNORECASE)
+        
+        from engineer.sandbox import EngineerSandbox
+        sandbox = EngineerSandbox()
+        
+        if matches:
+            results = []
+            files_written = []
+            
+            for file_path, content in matches:
+                # Cek keamanan per file
+                check = self.safety_guard.check_action(ActionType.WRITE, file_path)
+                if not check.allowed:
+                    return {"action": "direct_reply", "response": f"❌ Keamanan: {check.message} untuk {file_path}"}
+                
+                res = sandbox.write_file(file_path.strip(), content)
+                results.append(res)
+                files_written.append(file_path.strip())
+            
+            return {
+                "action": "need_approval",
+                "response": f"✅ {len(files_written)} file ditulis ke workspace:\n" + "\n".join([f"- `{f}`" for f in files_written]) + "\n\nLanjutkan ke review?",
+                "approval_details": {
+                    "type": "write_multi_file",
+                    "files": files_written,
+                    "sandbox_results": results
+                }
+            }
+            
+        # 2. Fallback ke single-file legacy (Tulis file X dengan isi: Y)
         path_match = re.search(
             r'(?:tulis|buat|write)\s+(?:file\s+)?["\']?([^\s"\']+\.\w+)["\']?',
             message,
@@ -171,12 +204,11 @@ class Engineer:
         if not path_match:
             return {
                 "action": "direct_reply",
-                "response": "❌ Format tidak dikenali. Gunakan: 'tulis file path/ke/file.py dengan isi: ...'"
+                "response": "❌ Format tidak dikenali. Gunakan: 'tulis file path/ke/file.py dengan isi: ...' atau format multi-file 'FILE: path...'"
             }
         
         file_path = path_match.group(1)
         
-        # Ekstrak konten setelah "dengan isi:" atau "content:"
         content_match = re.search(
             r'(?:dengan\s+isi|content)\s*:\s*(.+)',
             message,
@@ -184,14 +216,13 @@ class Engineer:
         )
         content = content_match.group(1).strip() if content_match else ""
         
-        # Tulis ke workspace sandbox
-        try:
-            from engineer.sandbox import EngineerSandbox
-            sandbox = EngineerSandbox()
+        check = self.safety_guard.check_action(ActionType.WRITE, file_path)
+        if not check.allowed:
+            return {"action": "direct_reply", "response": check.message}
             
+        try:
             result = sandbox.write_file(file_path, content)
             
-            # Minta persetujuan untuk memindahkan ke review
             return {
                 "action": "need_approval",
                 "response": f"✅ File ditulis ke workspace:\n```\n{content[:500]}\n```\n\nLanjutkan ke review?",
@@ -253,7 +284,7 @@ class Engineer:
                 "• 📊 **Analisis proyek** - Ketik 'analisis proyek'\n"
                 "• 📄 **Baca file** - Ketik 'baca file backend/main.py'\n"
                 "• 📁 **List direktori** - Ketik 'list folder'\n"
-                "• ✏️ **Tulis/edit file** - Ketik 'tulis file...' (perlu persetujuan)\n"
+                "• ✏️ **Tulis/edit file** - Ketik 'tulis file...' atau tempelkan blok `FILE: path`\n"
                 "• ⚡ **Jalankan command** - Ketik 'jalankan...' (perlu persetujuan)\n"
                 "• 🔍 **Review perubahan** - Ketik 'review'\n"
                 "• ✅ **Setujui perubahan** - Ketik 'setujui'\n"

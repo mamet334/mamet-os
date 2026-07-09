@@ -41,7 +41,7 @@
   });
 
   let uploading = $state(false);
-  let apiKey = $state("");
+  let apiKeyInput = $state("");
   let selectedAgent = $state<string | null>(null);
   let projectContextPath = $state<string | null>(null);
 
@@ -53,8 +53,6 @@
   let userEmail = $state("default");
 
   onMount(() => {
-    // Coba ambil API key dari localStorage
-    apiKey = localStorage.getItem("openrouter_key") || "";
     userEmail = localStorage.getItem("mamet_user_email") || "default";
   });
 
@@ -75,10 +73,9 @@
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_id: userEmail,
+          user_id: localStorage.getItem("mamet_user_email") || "andreanastasya798@gmail.com",
           column: columnId,
           message: textToSend,
-          api_key: apiKey || null,
           agent: columnId === "kolom2" ? selectedAgent : null,
           project_context: columnId === "kolom2" ? projectContextPath : null
         }),
@@ -112,9 +109,36 @@
     handleSend(columnId, commandText);
   }
 
-  function saveApiKey() {
-    localStorage.setItem("openrouter_key", apiKey);
-    alert("API Key tersimpan secara lokal!");
+  async function saveApiKey() {
+    if (!apiKeyInput) return;
+    
+    // Validasi khusus OpenRouter
+    if (!apiKeyInput.startsWith("sk-or-v1-")) {
+      alert("❌ API Key tidak valid. Kunci OpenRouter harus diawali dengan 'sk-or-v1-'");
+      return;
+    }
+    
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/provider", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: localStorage.getItem("mamet_user_email") || "andreanastasya798@gmail.com",
+          name: "openrouter",
+          api_key: apiKeyInput,
+          priority: 1
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert("API Key berhasil disimpan ke Database!");
+        apiKeyInput = ""; // Kosongkan input setelah disimpan
+      } else {
+        alert("Gagal menyimpan: " + data.detail);
+      }
+    } catch (e) {
+      alert("Gagal terhubung ke server Kernel");
+    }
   }
 
   async function handleFileUpload(e: Event) {
@@ -254,8 +278,11 @@
         <div class="flex items-center gap-2 bg-black/40 px-2 py-1.5 rounded-md border border-white/5">
           <input 
             type="password" 
-            bind:value={apiKey} 
+            bind:value={apiKeyInput} 
             placeholder="sk-or-v1-..."
+            autocomplete="new-password"
+            id="api_key_input"
+            name="api_key_input"
             class="bg-transparent text-xs text-white focus:outline-none w-full placeholder-slate-600"
           />
           <button onclick={saveApiKey} class="text-xs text-mamet-cyan hover:text-white font-medium transition-colors">Save</button>
