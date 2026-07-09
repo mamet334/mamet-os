@@ -77,6 +77,21 @@ async def upload_document(file: UploadFile = File(...)):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.delete("/api/rag/{filename}")
+async def delete_rag_document(filename: str):
+    """Endpoint untuk menghapus dokumen dari RAG."""
+    try:
+        from rag.rag_engine import RAGEngine
+        rag = RAGEngine()
+        
+        result = rag.delete_document(filename)
+        if result.get("status") == "success":
+            return {"message": f"Dokumen {filename} berhasil dihapus"}
+        else:
+            raise HTTPException(status_code=404, detail="Dokumen tidak ditemukan di database RAG")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/budget")
 async def get_budget(email: str = "default"):
     """Dapatkan status budget dan limit."""

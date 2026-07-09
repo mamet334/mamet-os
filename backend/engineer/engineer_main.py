@@ -65,6 +65,8 @@ class Engineer:
             return self._handle_create_backup()
         elif intent == "list_backups":
             return self.list_backups()
+        elif intent == "delete_rag":
+            return self._handle_delete_rag(message)
         else:
             result = self._handle_unknown(message)
             print(f"  [ENGINEER.PROCESS] Unknown result: {result}")
@@ -100,6 +102,8 @@ class Engineer:
             return "rollback"
         elif any(word in msg for word in ["backup", "cadangan"]):
             return "list_backups"
+        elif any(word in msg for word in ["hapus rag", "hapus dokumen", "delete rag"]):
+            return "delete_rag"
         else:
             return "unknown"
     
@@ -128,6 +132,26 @@ class Engineer:
                 "action": "direct_reply",
                 "response": f"❌ Gagal menganalisis proyek: {str(e)}"
             }
+            
+    def _handle_delete_rag(self, message: str) -> Dict[str, Any]:
+        """Tangani permintaan penghapusan dokumen RAG."""
+        import re
+        # Ekstrak nama file dari pesan
+        filename_match = re.search(r'([^\s"\']+\.[a-zA-Z0-9]+)', message)
+        if not filename_match:
+            return {"action": "direct_reply", "response": "❌ Sebutkan nama file dokumen yang ingin dihapus. Contoh: `hapus dokumen laporan.pdf`"}
+            
+        filename = filename_match.group(1)
+        try:
+            from rag.rag_engine import RAGEngine
+            rag = RAGEngine()
+            result = rag.delete_document(filename)
+            if result.get("status") == "success":
+                return {"action": "direct_reply", "response": f"✅ Dokumen **{filename}** berhasil dihapus dari database RAG."}
+            else:
+                return {"action": "direct_reply", "response": f"❌ Dokumen **{filename}** tidak ditemukan di database RAG."}
+        except Exception as e:
+            return {"action": "direct_reply", "response": f"❌ Gagal menghapus dokumen RAG: {str(e)}"}
     
     async def _handle_read_file(self, message: str) -> Dict[str, Any]:
         """Tangani permintaan membaca file."""
