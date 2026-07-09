@@ -168,12 +168,16 @@
 
   let activeDrawerMenu = $state<string | null>(null);
   let availableDrawers = $state<string[]>([]);
+  let newDrawerName = $state("");
 
   async function openDrawerMenu(columnId: string) {
     if (activeDrawerMenu === columnId) {
       activeDrawerMenu = null;
       return;
     }
+    
+    activeDrawerMenu = columnId; // Tampilkan modal langsung
+    newDrawerName = ""; // Reset input
     
     try {
       const res = await fetch(`http://127.0.0.1:8000/api/drawer/list/${userEmail}/${columnId}`);
@@ -182,25 +186,27 @@
         availableDrawers = data.drawers || [];
       }
     } catch (e) {
-      console.error(e);
+      console.error("Gagal mengambil laci", e);
     }
-    activeDrawerMenu = columnId;
   }
 
   async function saveToDrawer(columnId: string) {
-    const drawerName = prompt("Masukkan nama laci untuk menyimpan obrolan ini:");
-    if (!drawerName || !drawerName.trim()) return;
+    if (!newDrawerName || !newDrawerName.trim()) {
+      alert("Nama laci tidak boleh kosong!");
+      return;
+    }
     
     try {
       const res = await fetch("http://127.0.0.1:8000/api/drawer/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: userEmail, column: columnId, drawer_name: drawerName.trim() })
+        body: JSON.stringify({ email: userEmail, column: columnId, drawer_name: newDrawerName.trim() })
       });
       if (res.ok) {
         messages[columnId] = [];
         activeDrawerMenu = null;
-        alert(`✅ Obrolan berhasil disimpan ke Laci: ${drawerName}`);
+        alert(`✅ Obrolan berhasil disimpan ke Laci: ${newDrawerName}`);
+        newDrawerName = "";
       }
     } catch (e) {
       alert("❌ Gagal menyimpan ke laci.");
@@ -636,6 +642,66 @@
                 </div>
               </div>
             </div>
+
+            <!-- Modal Laci (Drawer Menu) -->
+            {#if activeDrawerMenu === col.id}
+              <div class="absolute inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                <div class="bg-[#121217] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl flex flex-col max-h-[80vh] overflow-hidden">
+                  <div class="p-4 border-b border-white/5 flex justify-between items-center bg-white/5">
+                    <h3 class="text-white font-semibold flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                      Laci Obrolan
+                    </h3>
+                    <button onclick={() => activeDrawerMenu = null} class="text-slate-400 hover:text-white transition-colors">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    </button>
+                  </div>
+                  
+                  <div class="p-4 flex-1 overflow-y-auto custom-scrollbar">
+                    
+                    <div class="mb-6 bg-black/20 p-3 rounded-xl border border-white/5">
+                      <label class="block text-xs font-semibold text-slate-400 mb-2">Simpan ke Laci Baru</label>
+                      <div class="flex gap-2">
+                        <input 
+                          type="text" 
+                          bind:value={newDrawerName} 
+                          placeholder="Nama laci (misal: Riset A)" 
+                          class="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-amber-500/50 transition-colors"
+                        />
+                        <button 
+                          onclick={() => saveToDrawer(col.id)}
+                          disabled={!newDrawerName.trim()}
+                          class="bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 border border-amber-500/20 px-4 py-2 rounded-lg transition-colors font-medium text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                          Simpan
+                        </button>
+                      </div>
+                    </div>
+
+                    <h4 class="text-xs font-semibold text-slate-500 mb-3 uppercase tracking-wider">Laci Tersedia</h4>
+                    
+                    {#if availableDrawers.length === 0}
+                      <div class="text-center py-6 text-slate-500 text-sm">Belum ada laci yang tersimpan.</div>
+                    {:else}
+                      <div class="space-y-2">
+                        {#each availableDrawers as drawer}
+                          <button 
+                            onclick={() => loadFromDrawer(col.id, drawer)}
+                            class="w-full text-left bg-white/[0.03] hover:bg-white/10 border border-white/5 hover:border-white/20 p-3 rounded-lg transition-colors flex items-center gap-3 group"
+                          >
+                            <span class="text-slate-400 group-hover:text-mamet-cyan transition-colors">
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                            </span>
+                            <span class="text-sm font-medium text-slate-300 group-hover:text-white transition-colors">{drawer}</span>
+                          </button>
+                        {/each}
+                      </div>
+                    {/if}
+                  </div>
+                </div>
+              </div>
+            {/if}
 
           </section>
         {/if}
