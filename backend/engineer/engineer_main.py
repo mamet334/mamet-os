@@ -67,6 +67,8 @@ class Engineer:
             return self.list_backups()
         elif intent == "delete_rag":
             return self._handle_delete_rag(message)
+        elif intent == "list_rag":
+            return self._handle_list_rag()
         else:
             result = self._handle_unknown(message)
             print(f"  [ENGINEER.PROCESS] Unknown result: {result}")
@@ -104,6 +106,8 @@ class Engineer:
             return "list_backups"
         elif any(word in msg for word in ["hapus rag", "hapus dokumen", "delete rag"]):
             return "delete_rag"
+        elif any(word in msg for word in ["list rag", "daftar rag", "daftar dokumen", "lihat dokumen rag", "isi rag"]):
+            return "list_rag"
         else:
             return "unknown"
     
@@ -152,6 +156,27 @@ class Engineer:
                 return {"action": "direct_reply", "response": f"❌ Dokumen **{filename}** tidak ditemukan di database RAG."}
         except Exception as e:
             return {"action": "direct_reply", "response": f"❌ Gagal menghapus dokumen RAG: {str(e)}"}
+            
+    def _handle_list_rag(self) -> Dict[str, Any]:
+        """Tangani permintaan untuk melihat isi RAG."""
+        try:
+            from rag.rag_engine import RAGEngine
+            rag = RAGEngine()
+            docs = rag.list_documents()
+            stats = rag.get_stats()
+            
+            if not docs:
+                return {"action": "direct_reply", "response": "📭 Database RAG saat ini kosong. Belum ada dokumen yang diunggah."}
+                
+            response = f"📚 **Database RAG (Total {stats.get('total_documents', 0)} chunks)**\n\n"
+            response += "Berikut adalah daftar dokumen yang tersimpan:\n"
+            for i, doc in enumerate(docs, 1):
+                response += f"{i}. `{doc}`\n"
+                
+            response += "\n_Gunakan perintah `hapus dokumen <nama_file>` untuk menghapus._"
+            return {"action": "direct_reply", "response": response}
+        except Exception as e:
+            return {"action": "direct_reply", "response": f"❌ Gagal melist dokumen RAG: {str(e)}"}
     
     async def _handle_read_file(self, message: str) -> Dict[str, Any]:
         """Tangani permintaan membaca file."""

@@ -247,6 +247,25 @@ class RAGEngine:
                 "similarity_threshold": 0.65
             }
         return {"status": "not_available"}
+        
+    def list_documents(self) -> List[str]:
+        """Dapatkan daftar nama file unik yang tersimpan di RAG."""
+        if not self.collection:
+            return []
+        
+        try:
+            results = self.collection.get(include=["metadatas"])
+            if not results or not results["metadatas"]:
+                return []
+                
+            filenames = set()
+            for metadata in results["metadatas"]:
+                if metadata and "filename" in metadata:
+                    filenames.add(metadata["filename"])
+            return sorted(list(filenames))
+        except Exception as e:
+            print(f"[RAG] Gagal melist dokumen: {e}")
+            return []
     
     def delete_document(self, filename: str) -> Dict:
         """Hapus dokumen berdasarkan nama file."""
