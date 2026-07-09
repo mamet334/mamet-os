@@ -406,10 +406,10 @@ async def backup_to_flashdisk():
         target_project = os.path.join(target_dir, "mamet-os")
         
         # Eksekusi robocopy untuk Proyek
-        # Exclusion: node_modules, .git, .svelte-kit, __pycache__, .venv
+        # Exclusion: node_modules, .git, .svelte-kit, __pycache__, .venv, venv, .next, target, build, dist
         cmd_proj = [
             "robocopy", project_root, target_project, "/MIR", "/MT:8", "/R:1", "/W:1",
-            "/XD", "node_modules", ".git", ".svelte-kit", "__pycache__", ".venv"
+            "/XD", "node_modules", ".git", ".svelte-kit", "__pycache__", ".venv", "venv", "env", ".next", "target", "build", "dist"
         ]
         # robocopy mengembalikan 0-7 jika sukses (ada yang di-copy atau tidak ada perubahan)
         res_proj = subprocess.run(cmd_proj, capture_output=True)
