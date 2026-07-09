@@ -193,6 +193,14 @@ Sesi ini berfokus pada penghilangan friksi (hambatan UX) agar MAMET OS layak men
 *   **Akar Masalah (Root Cause) 2:** Kesalahan injeksi komponen *Modal Laci* pada Svelte. Blok kode `{#if activeDrawerMenu}` tanpa sengaja terinjeksi ke dalam blok iterasi pesan UI yang memiliki logika `requires_approval`, sehingga *modal* terjebak di bawah *layer* chat atau gagal di-*render* sama sekali.
 *   **Resolusi:** `window.prompt()` dihilangkan dan diganti dengan antarmuka khusus (Custom Input Element) bergaya *glassmorphism* di dalam *modal*. Posisi *render modal* dipindahkan secara absolut (`absolute inset-0 z-50`) ke tingkat induk terluar dari `<section>`, memastikan *popup* Laci menutupi seluruh meja kerja tanpa gangguan tumpukan Z (*z-index*).
 
+**Penyempurnaan Arsitektur & Agen (Malam Hari):**
+1. **Resolusi Layout Chat Blowout:** Memperbaiki bug di UI Svelte di mana *code block* (teks panjang tanpa spasi) meluap melewati batas balon obrolan. Diselesaikan dengan injeksi CSS global `min-w-0` dan `white-space: pre-wrap !important` pada blok `.prose pre`.
+2. **Perbaikan Path Resolution Sub-Agent (Evidence Collector):** Memperbaiki bug "File Not Found" saat agen menganalisis *file*. Agen sebelumnya hanya mencari di `os.getcwd()` (yaitu folder `backend/`). Logika telah diperbaiki untuk menerapkan *Smart Fallback*: (a) Menggunakan path `project_context` hasil pilihan *user* dari UI, (b) Jatuh ke folder saat ini, (c) Jatuh ke *parent folder* root proyek `mamet-os/`.
+3. **Manajemen RAG Nirkode melalui Engineer (Kolom 3):** RAG kini sepenuhnya bisa dimanipulasi dari dalam sistem OS tanpa perlu membuka *database* manual. 
+   - Menambahkan *endpoint* `DELETE /api/rag/{filename}` dan metode `delete_document` serta `list_documents` di `RAGEngine` (ChromaDB).
+   - Menambahkan *intent* `delete_rag` dan `list_rag` di *Engineer Agent* dengan Regex cerdas yang mendukung spasi pada nama *file*. 
+   - Hasilnya, *user* cukup mengetik `daftar dokumen` atau `hapus <nama_file.txt>` di Kolom 3.
+
 ## 12. Future Roadmap & Ideasi Tertunda
 
 ### Dynamic Memory Rolling Credits (Warisan Digital Berjalan)
