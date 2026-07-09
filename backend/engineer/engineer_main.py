@@ -136,8 +136,8 @@ class Engineer:
     def _handle_delete_rag(self, message: str) -> Dict[str, Any]:
         """Tangani permintaan penghapusan dokumen RAG."""
         import re
-        # Ekstrak nama file dari pesan
-        filename_match = re.search(r'([^\s"\']+\.[a-zA-Z0-9]+)', message)
+        # Ekstrak nama file dari pesan, dukung spasi
+        filename_match = re.search(r'(?:hapus rag|hapus dokumen|delete rag)\s+["\']?(.*?\.([a-zA-Z0-9]+))["\']?\b', message, re.IGNORECASE)
         if not filename_match:
             return {"action": "direct_reply", "response": "❌ Sebutkan nama file dokumen yang ingin dihapus. Contoh: `hapus dokumen laporan.pdf`"}
             
