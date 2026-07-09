@@ -889,4 +889,16 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
   }
+
+  /* Force Markdown code blocks to word-wrap instead of overflowing */
+  :global(.prose pre) {
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+    overflow-x: hidden !important;
+  }
+  
+  :global(.prose code) {
+    white-space: pre-wrap !important;
+    word-break: break-word !important;
+  }
 </style>
