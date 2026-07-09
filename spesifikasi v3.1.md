@@ -193,4 +193,11 @@ Sesi ini berfokus pada penghilangan friksi (hambatan UX) agar MAMET OS layak men
 *   **Akar Masalah (Root Cause) 2:** Kesalahan injeksi komponen *Modal Laci* pada Svelte. Blok kode `{#if activeDrawerMenu}` tanpa sengaja terinjeksi ke dalam blok iterasi pesan UI yang memiliki logika `requires_approval`, sehingga *modal* terjebak di bawah *layer* chat atau gagal di-*render* sama sekali.
 *   **Resolusi:** `window.prompt()` dihilangkan dan diganti dengan antarmuka khusus (Custom Input Element) bergaya *glassmorphism* di dalam *modal*. Posisi *render modal* dipindahkan secara absolut (`absolute inset-0 z-50`) ke tingkat induk terluar dari `<section>`, memastikan *popup* Laci menutupi seluruh meja kerja tanpa gangguan tumpukan Z (*z-index*).
 
+## 12. Future Roadmap & Ideasi Tertunda
+
+### Dynamic Memory Rolling Credits (Warisan Digital Berjalan)
+*   **Status:** Ditunda (Direncanakan untuk rilis mendatang)
+*   **Alasan Penundaan:** Saat ini (9 Juli 2026), sistem ekstraksi fakta *(Continuous Fact Extraction)* baru saja diimplementasikan dengan stabil. Oleh karena itu, jumlah "Fakta Permanen" (Tabel `facts` di SQLite) milik pengguna masih terlalu sedikit untuk disajikan sebagai *Rolling Credits* yang panjang dan dramatis.
+*   **Konsep:** Layar *Credit Berjalan* di menu "Tentang MAMET OS" (`/credit`) yang saat ini memutar teks statis (`credit.txt`), akan dirombak. Sistem akan memiliki *endpoint* API baru (`GET /api/memory/facts`) untuk menarik semua profil, preferensi, dan memori jangka panjang pengguna, kemudian menampilkannya berjalan perlahan layaknya film dokumenter. Ini adalah perwujudan puitis dan emosional dari manifesto "Warisan Digital Pribadi".
+
 Dokumen ini sudah mencakup semua keputusan hingga sesi ini. Anda bisa menyimpannya sebagai `Spesifikasi v3.1.md` yang baru.
