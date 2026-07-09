@@ -325,9 +325,14 @@ class EvidenceCollector:
                 file_match = re.search(r'([^\s"\']+\.(?:db|sqlite|csv|json|sqlite3))', message, re.IGNORECASE)
                 if file_match:
                     raw_path = file_match.group(1)
+                    project_ctx = plan.get("project_context")
+                    p_ctx = os.path.join(project_ctx, raw_path) if project_ctx else None
                     p1 = os.path.join(os.getcwd(), raw_path)
                     p2 = os.path.join(os.path.dirname(os.getcwd()), raw_path)
-                    if os.path.exists(p1):
+                    
+                    if p_ctx and os.path.exists(p_ctx):
+                        context["file_path"] = p_ctx
+                    elif os.path.exists(p1):
                         context["file_path"] = p1
                     elif os.path.exists(p2):
                         context["file_path"] = p2
@@ -348,9 +353,14 @@ class EvidenceCollector:
                 file_match = re.search(r'([^\s"\']+\.[a-zA-Z0-9]+)', message, re.IGNORECASE)
                 if file_match:
                     raw_path = file_match.group(1)
+                    project_ctx = plan.get("project_context")
+                    p_ctx = os.path.join(project_ctx, raw_path) if project_ctx else None
                     p1 = os.path.join(os.getcwd(), raw_path)
                     p2 = os.path.join(os.path.dirname(os.getcwd()), raw_path)
-                    if os.path.exists(p1):
+                    
+                    if p_ctx and os.path.exists(p_ctx):
+                        context["file_path"] = p_ctx
+                    elif os.path.exists(p1):
                         context["file_path"] = p1
                     elif os.path.exists(p2):
                         context["file_path"] = p2
