@@ -69,10 +69,7 @@
     }
   }
 
-  onMount(async () => {
-    userEmail = localStorage.getItem("mamet_user_email") || "default";
-    
-    // Tarik histori percakapan dari backend
+  async function loadHistory() {
     try {
       const res = await fetch(`http://127.0.0.1:8000/api/history/${userEmail}`);
       if (res.ok) {
@@ -88,6 +85,11 @@
     } catch (e) {
       console.log("Histori chat kosong atau server mati.");
     }
+  }
+
+  onMount(async () => {
+    userEmail = localStorage.getItem("mamet_user_email") || "default";
+    await loadHistory();
   });
 
   function copyToClipboard(text: string) {
@@ -161,6 +163,64 @@
       }
     } catch (e) {
       console.error("Gagal menghapus riwayat di backend.", e);
+    }
+  }
+
+  let activeDrawerMenu = $state<string | null>(null);
+  let availableDrawers = $state<string[]>([]);
+
+  async function openDrawerMenu(columnId: string) {
+    if (activeDrawerMenu === columnId) {
+      activeDrawerMenu = null;
+      return;
+    }
+    
+    try {
+      const res = await fetch(`http://127.0.0.1:8000/api/drawer/list/${userEmail}/${columnId}`);
+      if (res.ok) {
+        const data = await res.json();
+        availableDrawers = data.drawers || [];
+      }
+    } catch (e) {
+      console.error(e);
+    }
+    activeDrawerMenu = columnId;
+  }
+
+  async function saveToDrawer(columnId: string) {
+    const drawerName = prompt("Masukkan nama laci untuk menyimpan obrolan ini:");
+    if (!drawerName || !drawerName.trim()) return;
+    
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/drawer/save", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userEmail, column: columnId, drawer_name: drawerName.trim() })
+      });
+      if (res.ok) {
+        messages[columnId] = [];
+        activeDrawerMenu = null;
+        alert(`✅ Obrolan berhasil disimpan ke Laci: ${drawerName}`);
+      }
+    } catch (e) {
+      alert("❌ Gagal menyimpan ke laci.");
+    }
+  }
+
+  async function loadFromDrawer(columnId: string, drawerName: string) {
+    if (!confirm(`Tarik laci '${drawerName}' ke meja? (Meja saat ini akan dibersihkan)`)) return;
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/drawer/load", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userEmail, column: columnId, drawer_name: drawerName })
+      });
+      if (res.ok) {
+        activeDrawerMenu = null;
+        await loadHistory(); // Refresh history from backend
+      }
+    } catch (e) {
+      alert("❌ Gagal memuat dari laci.");
     }
   }
 
@@ -419,6 +479,13 @@
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
                     </button>
+                    <button 
+                      onclick={() => openDrawerMenu(col.id)}
+                      class="text-slate-500 hover:text-amber-400 p-1 rounded transition-colors ml-1"
+                      title="Laci (Simpan/Ambil Obrolan)"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="9" y1="14" x2="15" y2="14"></line></svg>
+                    </button>
                   </div>
                   <p class="text-xs text-slate-500">{col.desc}</p>
                 </div>
@@ -557,7 +624,11 @@
                     disabled={loadings[col.id] || !inputs[col.id].trim()}
                     class="glass-btn-primary shrink-0 m-0.5 p-3 rounded-xl disabled:bg-white/5 disabled:border-white/10 disabled:text-slate-500 disabled:shadow-none"
                   >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    {#if loadings[col.id]}
+                      <svg class="animate-spin" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>
+                    {:else}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                    {/if}
                   </button>
                 </div>
                 <div class="mt-2 flex justify-between items-center px-1">

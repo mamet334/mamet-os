@@ -71,10 +71,18 @@ class UserMemory:
                     column_name TEXT DEFAULT 'kolom2',
                     message TEXT NOT NULL,
                     response TEXT,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    drawer_name TEXT DEFAULT 'active'
                 )
             """)
             conn.commit()
+            
+            # Migration: add drawer_name if not exists
+            try:
+                conn.execute("ALTER TABLE conversations ADD COLUMN drawer_name TEXT DEFAULT 'active'")
+                conn.commit()
+            except sqlite3.OperationalError:
+                pass # Column already exists
             
     @property
     def is_legacy_mode(self) -> bool:
@@ -207,25 +215,25 @@ class UserMemory:
         """Simpan riwayat percakapan."""
         with self._get_connection() as conn:
             conn.execute(
-                "INSERT INTO conversations (column_name, message, response) VALUES (?, ?, ?)",
+                "INSERT INTO conversations (column_name, message, response, drawer_name) VALUES (?, ?, ?, 'active')",
                 (column, message, response)
             )
             conn.commit()
     
     def get_recent_conversations(self, limit: int = 10) -> List[Dict]:
-        """Ambil percakapan terbaru."""
+        """Ambil percakapan terbaru dari meja aktif."""
         with self._get_connection() as conn:
             rows = conn.execute(
-                "SELECT * FROM conversations ORDER BY timestamp DESC LIMIT ?",
+                "SELECT * FROM conversations WHERE drawer_name = 'active' ORDER BY timestamp DESC LIMIT ?",
                 (limit,)
             ).fetchall()
             return [dict(row) for row in rows]
             
     def clear_conversations(self, column: str):
-        """Hapus semua riwayat percakapan untuk kolom tertentu."""
+        """Hapus semua riwayat percakapan untuk kolom tertentu di meja aktif."""
         with self._get_connection() as conn:
             conn.execute(
-                "DELETE FROM conversations WHERE column_name = ?",
+                "DELETE FROM conversations WHERE column_name = ? AND drawer_name = 'active'",
                 (column,)
             )
             conn.commit()
@@ -248,7 +256,44 @@ class UserMemory:
             lines.append(f"- {f['fact']} (confidence: {f['confidence']:.0%})")
         
         return "\n".join(lines)
-    
+        
+    def save_to_drawer(self, column: str, drawer_name: str):
+        """Simpan obrolan aktif ke laci."""
+        if drawer_name.lower() == "active":
+            return
+        with self._get_connection() as conn:
+            conn.execute(
+                "UPDATE conversations SET drawer_name = ? WHERE column_name = ? AND drawer_name = 'active'",
+                (drawer_name, column)
+            )
+            conn.commit()
+            
+    def load_from_drawer(self, column: str, drawer_name: str):
+        """Ambil obrolan dari laci ke meja aktif (meja aktif sekarang otomatis dibersihkan / atau dihapus)."""
+        if drawer_name.lower() == "active":
+            return
+        with self._get_connection() as conn:
+            # Kosongkan meja aktif dulu
+            conn.execute(
+                "DELETE FROM conversations WHERE column_name = ? AND drawer_name = 'active'",
+                (column,)
+            )
+            # Tarik dari laci ke meja aktif
+            conn.execute(
+                "UPDATE conversations SET drawer_name = 'active' WHERE column_name = ? AND drawer_name = ?",
+                (column, drawer_name)
+            )
+            conn.commit()
+            
+    def list_drawers(self, column: str) -> List[str]:
+        """Dapatkan daftar nama laci yang tersedia."""
+        with self._get_connection() as conn:
+            rows = conn.execute(
+                "SELECT DISTINCT drawer_name FROM conversations WHERE column_name = ? AND drawer_name != 'active' ORDER BY timestamp DESC",
+                (column,)
+            ).fetchall()
+            return [row[0] for row in rows]
+            
     def get_stats(self) -> Dict:
         """Statistik memori."""
         with self._get_connection() as conn:

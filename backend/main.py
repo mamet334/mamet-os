@@ -191,6 +191,44 @@ async def clear_chat_history(email: str, column: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+class DrawerSaveRequest(BaseModel):
+    email: str
+    column: str
+    drawer_name: str
+
+@app.post("/api/drawer/save")
+async def save_drawer(req: DrawerSaveRequest):
+    """Menyimpan meja aktif ke laci."""
+    try:
+        from memory.user_memory import UserMemory
+        memory = UserMemory(req.email)
+        memory.save_to_drawer(req.column, req.drawer_name)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/drawer/load")
+async def load_drawer(req: DrawerSaveRequest):
+    """Mengambil dari laci ke meja aktif."""
+    try:
+        from memory.user_memory import UserMemory
+        memory = UserMemory(req.email)
+        memory.load_from_drawer(req.column, req.drawer_name)
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/drawer/list/{email}/{column}")
+async def list_drawers(email: str, column: str):
+    """Mendapatkan daftar laci."""
+    try:
+        from memory.user_memory import UserMemory
+        memory = UserMemory(email)
+        drawers = memory.list_drawers(column)
+        return {"drawers": drawers}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 # ================= AUTHENTICATION & DASHBOARD ================= #
 
 class AuthRequest(BaseModel):
