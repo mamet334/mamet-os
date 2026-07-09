@@ -376,6 +376,65 @@ async def restore_from_drive(req: SyncRequest):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+@app.post("/api/sync/flashdisk")
+async def backup_to_flashdisk():
+    """Menyalin seluruh proyek dan memori user ke Flashdisk (Removable Drive)."""
+    import ctypes
+    import os
+    import subprocess
+    
+    # 1. Cari Removable Drive
+    drives = []
+    bitmask = ctypes.windll.kernel32.GetLogicalDrives()
+    for letter in 'ABCDEFGHIJKLMNOPQRSTUVWXYZ':
+        if bitmask & 1:
+            drive_path = f"{letter}:\\"
+            if ctypes.windll.kernel32.GetDriveTypeW(drive_path) == 2: # DRIVE_REMOVABLE
+                drives.append(drive_path)
+        bitmask >>= 1
+        
+    if not drives:
+        raise HTTPException(status_code=404, detail="Flashdisk tidak terdeteksi. Pastikan dicolok dengan benar.")
+        
+    target_drive = drives[0] # Gunakan yang pertama
+    target_dir = os.path.join(target_drive, "Backup_MametOS")
+    
+    try:
+        # Sumber 1: Root Project (MAMET OS)
+        backend_dir = os.path.dirname(os.path.abspath(__file__))
+        project_root = os.path.dirname(backend_dir)
+        target_project = os.path.join(target_dir, "mamet-os")
+        
+        # Eksekusi robocopy untuk Proyek
+        # Exclusion: node_modules, .git, .svelte-kit, __pycache__, .venv
+        cmd_proj = [
+            "robocopy", project_root, target_project, "/MIR", "/MT:8", "/R:1", "/W:1",
+            "/XD", "node_modules", ".git", ".svelte-kit", "__pycache__", ".venv"
+        ]
+        # robocopy mengembalikan 0-7 jika sukses (ada yang di-copy atau tidak ada perubahan)
+        res_proj = subprocess.run(cmd_proj, capture_output=True)
+        if res_proj.returncode >= 8:
+            print(res_proj.stderr)
+            raise Exception("Gagal menyalin folder proyek (robocopy error).")
+            
+        # Sumber 2: User Memory (~/.mamet)
+        mamet_dir = os.path.join(os.path.expanduser("~"), ".mamet")
+        target_mamet = os.path.join(target_dir, ".mamet_data")
+        
+        if os.path.exists(mamet_dir):
+            cmd_mamet = ["robocopy", mamet_dir, target_mamet, "/MIR", "/MT:4", "/R:1", "/W:1"]
+            res_mamet = subprocess.run(cmd_mamet, capture_output=True)
+            if res_mamet.returncode >= 8:
+                print(res_mamet.stderr)
+                raise Exception("Gagal menyalin memori pengguna (robocopy error).")
+                
+        return {"status": "success", "message": f"Backup sukses ke Flashdisk ({target_drive})!"}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)

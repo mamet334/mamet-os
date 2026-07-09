@@ -395,6 +395,25 @@
       syncState = "idle";
     }
   }
+
+  async function syncFlashdisk() {
+    syncState = "flashdisk";
+    try {
+      const res = await fetch("http://127.0.0.1:8000/api/sync/flashdisk", {
+        method: "POST"
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert("✅ " + data.message);
+      } else {
+        alert("❌ Gagal: " + (data.detail || data.message));
+      }
+    } catch (e) {
+      alert("❌ Server tidak merespon atau terjadi kesalahan sistem.");
+    } finally {
+      syncState = "idle";
+    }
+  }
 </script>
 
 <div class="flex h-screen bg-transparent text-slate-200 font-sans overflow-hidden relative">
@@ -812,6 +831,22 @@
                     {:else}
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242"></path><path d="M12 21v-9"></path><path d="m8 16 4 4 4-4"></path></svg>
                       Pulihkan (Restore) Memori
+                    {/if}
+                  </button>
+                </div>
+                <!-- FLASHDISK BUTTON -->
+                <div class="p-5 flex gap-4 bg-black/40 border-t border-white/5">
+                  <button 
+                    onclick={syncFlashdisk}
+                    disabled={syncState !== 'idle'}
+                    class="flex-1 border border-amber-500/20 hover:border-amber-500/50 bg-amber-500/10 hover:bg-amber-500/20 text-amber-500 py-3 rounded-xl flex items-center justify-center gap-2 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {#if syncState === 'flashdisk'}
+                      <div class="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                      Menyalin ke Flashdisk...
+                    {:else}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16c0 1.1.9 2 2 2h12a2 2 0 0 0 2-2V8l-6-6z"/><path d="M14 3v5h5M16 13H8M16 17H8M10 9H8"/></svg>
+                      Simpan Fisik ke Flashdisk (Robocopy)
                     {/if}
                   </button>
                 </div>
