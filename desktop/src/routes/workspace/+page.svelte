@@ -271,7 +271,10 @@
   }
 </script>
 
-<div class="flex h-screen bg-transparent text-slate-200 font-sans overflow-hidden">
+<div class="flex h-screen bg-transparent text-slate-200 font-sans overflow-hidden relative">
+  <!-- AMBIENT GLOW ORBS -->
+  <div class="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-mamet-cyan/20 blur-[120px] animate-blob pointer-events-none z-0"></div>
+  <div class="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] rounded-full bg-mamet-purple/15 blur-[120px] animate-blob pointer-events-none z-0" style="animation-delay: 2s; animation-direction: reverse;"></div>
   
   <!-- SIDEBAR (Panel Kiri) -->
   <aside class="w-64 glass-panel rounded-none border-y-0 border-l-0 flex flex-col shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.2)]">
@@ -408,10 +411,10 @@
 
               {#each messages[col.id] as msg}
                 <div class="flex flex-col {msg.role === 'user' ? 'items-end' : 'items-start'}">
-                  <div class="max-w-[85%] md:max-w-[75%] p-4 rounded-2xl text-[15px] leading-relaxed shadow-sm backdrop-blur-sm
+                  <div class="max-w-[85%] md:max-w-[75%] p-4 rounded-2xl text-[15px] leading-relaxed shadow-[0_4px_20px_rgba(0,0,0,0.15)] backdrop-blur-md transition-all duration-300 hover:-translate-y-0.5
                     {msg.role === 'user' 
-                      ? 'bg-mamet-cyan/20 border border-mamet-cyan/30 text-mamet-cyan shadow-[0_0_15px_rgba(0,219,233,0.15)] rounded-tr-sm' 
-                      : 'bg-white/5 border border-white/10 text-slate-200 rounded-tl-sm'}">
+                      ? 'bg-mamet-cyan/15 border border-mamet-cyan/30 border-t-mamet-cyan/60 text-mamet-cyan hover:shadow-[0_8px_25px_rgba(0,219,233,0.25)] rounded-tr-sm' 
+                      : 'bg-white/[0.03] border border-white/10 border-t-white/20 text-slate-200 hover:border-white/30 rounded-tl-sm'}">
                     <div class="whitespace-pre-wrap font-mono text-[14px]">{msg.content}</div>
                     
                     {#if msg.requires_approval && col.id === "kolom3"}
@@ -448,9 +451,9 @@
             </div>
 
             <!-- Input Area -->
-            <div class="p-4 border-t border-white/5 bg-black/30 backdrop-blur-md shrink-0">
+            <div class="p-4 border-t border-white/5 bg-black/40 backdrop-blur-xl shrink-0 z-10 relative">
               <div class="max-w-4xl mx-auto">
-                <div class="relative flex items-end gap-2 bg-white/5 border border-white/10 p-2 rounded-2xl focus-within:border-mamet-cyan/50 focus-within:ring-1 focus-within:ring-mamet-cyan/50 transition-all shadow-inner">
+                <div class="relative flex items-end gap-2 bg-white/[0.03] border border-white/10 border-t-white/20 p-2 rounded-2xl focus-within:border-mamet-cyan/60 focus-within:ring-1 focus-within:ring-mamet-cyan/50 focus-within:shadow-[0_0_30px_rgba(0,219,233,0.2)] focus-within:bg-white/[0.05] transition-all duration-300">
                   <textarea
                     bind:value={inputs[col.id]}
                     onkeydown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(col.id); } }}
